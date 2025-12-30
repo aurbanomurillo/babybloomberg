@@ -1,0 +1,15 @@
+# Python cache (archivos compilados que no se deben subir)
+__pycache__/
+*.pyc
+
+# Base de datos (No subas archivos grandes binarios o datos locales)
+*.db
+data/*.db
+
+# Entornos virtuales (si usas alguno)
+venv/
+.venv/
+env/
+
+# Archivos del sistema operativo
+.DS_Store

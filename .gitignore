@@ -1,8 +1,8 @@
-# Python cache (archivos compilados que no se deben subir)
+# Python cache
 __pycache__/
 *.pyc
 
-# Base de datos (No subas archivos grandes binarios o datos locales)
+# Base de datos
 *.db
 data/*.db
 
@@ -13,3 +13,6 @@ env/
 
 # Archivos del sistema operativo
 .DS_Store
+
+# Archivos temporales de testeo
+test.ipynb

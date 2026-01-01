@@ -1,16 +1,12 @@
-# BABYBLOOMBERG 📈
+# **BabyBloomberg — Automated Trading & Backtesting Engine**
 
-Un gestor de estrategias de trading automatizado escrito en Python. Este proyecto permite descargar datos históricos del S&P 500, almacenarlos en una base de datos SQLite y simular estrategias de compra/venta (Backtesting).
+This project implements a modular, object-oriented framework designed for the backtesting and simulation of automated trading strategies.  
+The system is built to autonomously fetch historical S&P 500 market data via the Yahoo Finance API, managing data persistence through a local SQLite database to ensure efficient retrieval and processing during simulations.
 
-## Estructura del Proyecto
+The architecture supports the definition of custom trading logic (such as threshold-based Buy/Sell triggers) and features a multi-strategy manager (`MultiStrat`) capable of combining and executing various strategies simultaneously. The engine provides comprehensive performance metrics, including detailed operation logs, capital evolution tracking, and final return on investment (ROI) analysis.
 
-- **src/**: Contiene la lógica del programa (API, base de datos, procesamiento, estrategias).
-- **data/**: Carpeta destinada a almacenar la base de datos `bolsa.db`.
-- **main.py**: Punto de entrada para ejecutar las simulaciones.
+---
 
-## Instalación
-
-1. Clona este repositorio.
-2. Instala las dependencias:
-   ```bash
-   pip install -r requirements.txt
+**By:** Antonio Urbano Murillo  
+**Email:** urbano@alu.comillas.edu  
+**LinkedIn:** www.linkedin.com/in/a-urbano

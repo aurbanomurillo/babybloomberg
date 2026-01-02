@@ -4,3 +4,4 @@ requests
 rich
 lxml
 plotly
+python-dateutil

@@ -12,3 +12,5 @@ class TradeNotClosed(Exception):
     pass
 class StopChecking(Exception):
     pass
+class NotValidIntervalError(Exception):
+    pass

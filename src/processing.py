@@ -1,6 +1,8 @@
 import pandas as pd
 from datetime import datetime, timedelta
-        
+from dateutil.relativedelta import relativedelta
+from src.exceptions import *
+
 def redondear_precio(datos: pd.DataFrame) -> pd.DataFrame:
     if datos.empty:
         return datos
@@ -37,3 +39,24 @@ def get_date_range(start_str: str, end_str: str) -> list[str]:
         current += timedelta(days=1)
         
     return lista_fechas
+
+def restar_intervalo(fecha_str:str, intervalo_str:str) -> str:
+    fecha_dt = datetime.strptime(fecha_str, "%Y-%m-%d")
+    
+    partes = intervalo_str.split()
+    cantidad = int(partes[0])
+    unidad = partes[1].lower()
+    if 'day' in unidad or 'd' in unidad:
+        delta = relativedelta(days=cantidad)
+    elif 'week' in unidad or 'w' in unidad:
+        delta = relativedelta(weeks=cantidad)
+    elif 'month' in unidad or 'm' in unidad:
+        delta = relativedelta(months=cantidad)
+    elif 'year' in unidad or 'y' in unidad:
+        delta = relativedelta(years=cantidad)
+    else:
+        raise NotValidIntervalError("Unidad no reconocida (usa day, week, month, year)")
+
+    nueva_fecha = fecha_dt - delta
+
+    return nueva_fecha.strftime("%Y-%m-%d")

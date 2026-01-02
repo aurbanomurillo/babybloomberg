@@ -16,6 +16,7 @@ The architecture supports the definition of custom trading logic (such as thresh
 1. **Clone the repository:**
    ```bash
    git clone <repository_url>
+## **Info and Socials**
 
 **By:** Antonio Urbano Murillo  
 **Email:** urbano@alu.comillas.edu  

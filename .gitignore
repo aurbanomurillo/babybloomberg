@@ -14,5 +14,6 @@ env/
 # Archivos del sistema operativo
 .DS_Store
 
-# Archivos temporales de testeo
+# Archivos temporales de testeo y de carga de datos
 test.ipynb
+loader.py

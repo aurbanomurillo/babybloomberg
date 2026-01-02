@@ -12,7 +12,7 @@ def obtener_tickers_sp500() -> list[str]:
     }
 
     try:
-        respuesta = requests.get(url, headers=headers)
+        respuesta = requests.get(url, headers = headers)
         respuesta.raise_for_status()
 
         tablas = pd.read_html(StringIO(respuesta.text))
@@ -29,25 +29,46 @@ def obtener_tickers_sp500() -> list[str]:
         print(f"Error técnico al obtener tickers: {e}")
         return []
 
-
-def descargar_datos_nuevos(ticker: str, start_date: str | None = None) -> pd.DataFrame:
+def descargar_datos_nuevos(
+        ticker: str,
+        start_date: str | None = None,
+        end_date: str | None = None) -> pd.DataFrame:
 
     if start_date == None:
-        return yf.download( 
-            ticker,
-            interval="1d",
-            progress=False,
-            auto_adjust=True)
+        if end_date == None:
+            return yf.download( 
+                ticker,
+                interval="1d",
+                progress=False,
+                auto_adjust=True
+                )
+        else:
+            return yf.download( 
+                ticker,
+                interval="1d",
+                progress=False,
+                auto_adjust=True,
+                end=end_date
+                )
 
     start = datetime.fromisoformat(start_date) + timedelta(days=1)
     if start >= datetime.now():
         return pd.DataFrame()
     
-    return yf.download(
-        ticker,
-        start=start.strftime("%Y-%m-%d"),
-        end=datetime.now().strftime("%Y-%m-%d"),
-        interval="1d",
-        progress=False,
-        auto_adjust=True
-    )
+    if end_date == None:
+        return yf.download(
+            ticker,
+            start=start.strftime("%Y-%m-%d"),
+            interval="1d",
+            progress=False,
+            auto_adjust=True
+        )
+    else:
+        return yf.download( 
+            ticker,
+            interval="1d",
+            progress=False,
+            auto_adjust=True,
+            end=end_date
+            )
+    

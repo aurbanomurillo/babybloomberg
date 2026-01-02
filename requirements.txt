@@ -3,3 +3,4 @@ yfinance
 requests
 rich
 lxml
+plotly

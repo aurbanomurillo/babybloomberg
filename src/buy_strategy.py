@@ -72,7 +72,7 @@ class DynamicBuyStrat(BuyStrat):
             fecha:str
             ):
         precio_actual = self.sf.get_price_in(fecha)
-        precio_a_comparar = self.sf.get_price_in(restar_intervalo(fecha,self.past_interval))
+        precio_a_comparar = self.sf.get_last_valid_price(restar_intervalo(fecha,self.past_interval))
 
         if (self.start <= fecha < self.end and
                 not precio_actual == None and

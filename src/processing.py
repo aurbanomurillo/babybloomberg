@@ -46,13 +46,13 @@ def restar_intervalo(fecha_str:str, intervalo_str:str) -> str:
     partes = intervalo_str.split()
     cantidad = int(partes[0])
     unidad = partes[1].lower()
-    if 'day' in unidad or 'd' in unidad:
+    if 'd' in unidad:
         delta = relativedelta(days=cantidad)
-    elif 'week' in unidad or 'w' in unidad:
+    elif 'w' in unidad:
         delta = relativedelta(weeks=cantidad)
-    elif 'month' in unidad or 'm' in unidad:
+    elif  'm' in unidad:
         delta = relativedelta(months=cantidad)
-    elif 'year' in unidad or 'y' in unidad:
+    elif 'y' in unidad:
         delta = relativedelta(years=cantidad)
     else:
         raise NotValidIntervalError("Unidad no reconocida (usa day, week, month, year)")

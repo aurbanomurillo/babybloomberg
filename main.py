@@ -4,6 +4,7 @@ from src.multi_strategy_manager import *
 from src.buy_strategy import *
 from src.sell_strategy import *
 from src.bounded_strategy import *
+from src.multi_bounded_strategy import *
 
 if __name__ == "__main__":
     
@@ -11,12 +12,13 @@ if __name__ == "__main__":
 
     # print(f"Cargando datos para {ticker}...")
     # load_stock(ticker)
-    start = "2025-07-02"
-    end = get_ultima_fecha(ticker)
+
 
     sf = get_sf_from_sqlite(ticker)
     print(sf)
     
+    start = get_primera_fecha(sf)
+    end = get_ultima_fecha(sf)
 
     capital = 1000000
 
@@ -50,7 +52,17 @@ if __name__ == "__main__":
     # buy_dip.print_operations()
     # buy_dip.print_performance()
 
-    sltp = BoundedStrategy(ticker, start, end, capital, sf, 210, 260) 
-    sltp.execute()
-    sltp.print_operations()
-    sltp.print_performance()
+    # sltp = BoundedStrategy(ticker, start, end, capital, sf, 200, 500) 
+    # sltp.execute()
+    # sltp.print_operations()
+    # sltp.print_performance()
+
+    # specific_sltp = MultiBoundedStrategy(ticker, start, end, capital, sf, [0.08, 0.1], 1, -0.9, 2)
+    # specific_sltp.execute()
+    # specific_sltp.print_operations()
+    # specific_sltp.print_performance()
+
+    sltp_dip = MultiDynamicBoundedStrategy(ticker, start, end, capital, sf, 1, -0.02, +0.02, -0.04, "3 d")
+    sltp_dip.execute()
+    sltp_dip.print_operations()
+    sltp_dip.print_performance()

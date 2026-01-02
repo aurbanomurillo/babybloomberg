@@ -25,10 +25,14 @@ class BoundedStrategy(Strategy):
         self.max_holding_period = max_holding_period        
         self.buy_all(self.start, trigger="initial_entry")
         self.entry_price = self.sf.get_price_in(self.start)
+        self._validar_parametros()
+
+    def _validar_parametros(self):
         if self.stop_loss >= self.entry_price:
             print(f"ADVERTENCIA: El Stop Loss ({self.stop_loss}) es mayor que el precio de entrada ({self.entry_price}). Se venderá inmediatamente.")
         if self.take_profit <= self.entry_price:
              print(f"ADVERTENCIA: El Take Profit ({self.take_profit}) es menor que el precio de entrada ({self.entry_price}). Se venderá inmediatamente.")
+
     def check_and_do(
             self,
             fecha:str
@@ -59,3 +63,42 @@ class BoundedStrategy(Strategy):
                     break
         if not self.closed:
             self.close_trade(self.end)
+
+
+class DynamicBoundedStrategy(BoundedStrategy):
+    """
+    Estrategia que define SL y TP como porcentajes del precio de entrada.
+    Ej: stop_loss_pct = -0.05 (5% pérdida), take_profit_pct = 0.10 (10% ganancia).
+    """
+    def __init__(
+            self,
+            ticker:str,
+            start:str,
+            end:str,
+            capital:float,
+            sf:StockFrame,
+            stop_loss_pct: float, 
+            take_profit_pct: float,
+            max_holding_period: int = None
+            ):
+        
+        self.stop_loss_pct = stop_loss_pct
+        self.take_profit_pct = take_profit_pct
+
+        super().__init__(
+            ticker, start, end, capital, sf, 
+            stop_loss=stop_loss_pct, 
+            take_profit=take_profit_pct, 
+            max_holding_period=max_holding_period
+        )
+
+        self.stop_loss = self.entry_price * (1 + self.stop_loss_pct)
+        self.take_profit = self.entry_price * (1 + self.take_profit_pct)
+
+    def _validar_parametros(self):
+        """Validación específica para porcentajes."""
+        if self.stop_loss_pct >= 0:
+            print(f"⚠️ ADVERTENCIA: El Stop Loss pct ({self.stop_loss_pct}) es positivo/cero. ¿Querías decir un número negativo?")
+        
+        if self.take_profit_pct <= 0:
+             print(f"⚠️ ADVERTENCIA: El Take Profit pct ({self.take_profit_pct}) es negativo/cero. Esto asegurará pérdidas.")

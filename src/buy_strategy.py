@@ -25,10 +25,10 @@ class BuyStrat(Strategy):
         precio_actual = self.sf.get_price_in(fecha)
         if type(self.threshold) == tuple:
             if self.start <= fecha < self.end and not precio_actual == None and self.threshold[0] <= precio_actual <= self.threshold[1]:
-                self.buy(self.amount_per_trade, fecha)
+                self.buy(self.amount_per_trade, fecha, trigger="automatic_check")
         elif type(self.threshold) == float:
             if self.start <= fecha < self.end and not precio_actual == None and precio_actual == self.threshold:
-                self.buy(self.amount_per_trade, fecha)
+                self.buy(self.amount_per_trade, fecha, trigger="automatic_check")
         if fecha >= self.end:
             raise StopChecking
     
@@ -81,15 +81,15 @@ class DynamicBuyStrat(BuyStrat):
             if isinstance(self.threshold,float):
                 if self.threshold > 0:
                     if precio_actual >= (1 + self.threshold) * precio_a_comparar:
-                        self.buy(self.amount_per_trade, fecha)
+                        self.buy(self.amount_per_trade, fecha, trigger="dynamic_check")
                         
                 elif self.threshold < 0:
                     if precio_actual <= (1 + self.threshold) * precio_a_comparar:
-                        self.buy(self.amount_per_trade, fecha)
+                        self.buy(self.amount_per_trade, fecha, trigger="dynamic_check")
             elif isinstance(self.threshold,tuple):
                 rango_precios = sorted([(1+self.threshold[0])*precio_a_comparar,(1+self.threshold[1])*precio_a_comparar])
                 if rango_precios[0] <= precio_actual <= rango_precios[1]:
-                    self.buy(self.amount_per_trade, fecha)
+                    self.buy(self.amount_per_trade, fecha, trigger="dynamic_check")
 
         if fecha >= self.end:
             raise StopChecking

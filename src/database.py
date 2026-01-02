@@ -75,7 +75,7 @@ def get_primera_fecha(
         return None
 
 def get_ultima_fecha(
-        ticker: str,
+        ticker: str | StockFrame,
         ruta_db: str = 'data/bolsa.db'
         ) -> str | None:
     try:

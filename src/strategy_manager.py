@@ -27,39 +27,61 @@ class Strategy():
         self.operations:list[Operation] = []
         self.closed = False
 
-    def buy(self, cash_amount:float, fecha:str):
+    def buy(
+            self,
+            cash_amount:float,
+            fecha:str,
+            trigger:str = "manual"
+            ):
 
         stock_price = self.sf.get_price_in(fecha)
         
         if self.fiat - cash_amount >= 0:
             self.fiat -= cash_amount
             self.stock += float(round(cash_amount/stock_price, 8))
-            self.operations.append(Operation("compra", cash_amount, self.ticker, stock_price, True, fecha))
+            self.operations.append(Operation("compra", cash_amount, self.ticker, stock_price, True, fecha, trigger))
         else:
-            self.operations.append(Operation("compra", cash_amount, self.ticker, stock_price, False, fecha))
+            self.operations.append(Operation("compra", cash_amount, self.ticker, stock_price, False, fecha, trigger))
             raise NotEnoughCashError()
         
-    def buy_all(self, fecha:str):
-        self.buy(self.fiat, fecha)
+    def buy_all(
+            self,
+            fecha:str,
+            trigger:str = "manual"
+            ):
+        self.buy(self.fiat, fecha, trigger)
 
-    def sell(self, cash_amount:int, fecha:str):
+    def sell(
+            self,
+            cash_amount:int,
+            fecha:str,
+            trigger:str = "manual"
+            ):
         stock_price = self.sf.get_price_in(fecha)
         stock_amount = float(round(cash_amount/stock_price, 8))
         if self.stock - stock_amount >= -0.00000001:
 
             self.fiat += float(cash_amount)
             self.stock -= stock_amount
-            self.operations.append(Operation("venta", cash_amount, self.ticker, stock_price, True, fecha))
+            self.operations.append(Operation("venta", cash_amount, self.ticker, stock_price, True, fecha, trigger))
         else:
-            self.operations.append(Operation("venta", cash_amount, self.ticker, stock_price, False, fecha))
+            self.operations.append(Operation("venta", cash_amount, self.ticker, stock_price, False, fecha, trigger))
             raise NotEnoughStockError()
     
-    def sell_all(self, fecha:str):
+    def sell_all(
+            self,
+            fecha:str,
+            trigger:str = "manual"
+            ):
         stock_price = self.sf.get_price_in(fecha)
-        self.sell(self.stock * stock_price, fecha)
+        self.sell(self.stock * stock_price, fecha, trigger)
         
-    def close_trade(self, fecha:str):
-        self.sell_all(fecha)
+    def close_trade(
+            self,
+            fecha:str,
+            trigger:str = "force_close"
+            ):
+        self.sell_all(fecha, trigger = trigger)
         self.profits = round(self.fiat - self.initial_capital, 2)
         self.closed = True
     
@@ -76,9 +98,9 @@ class Strategy():
         try:
             print(f"-" * 50)
             print(f"{len(self.operations)} operations executed.")
-            print(f"Initial capital = {self.initial_capital}$.")
-            print(f"Final capital = {self.fiat}$.")
-            print(f"Final profit = {self.get_profit()}$")
+            print(f"Initial capital = {round(self.initial_capital, 2)}$.")
+            print(f"Final capital = {round(self.fiat, 2)}$.")
+            print(f"Final profit = {round(self.get_profit(), 2)}$")
             print(f"Final returns (percentage) = {round(self.get_returns() * 100, 4)}%")
         except TradeNotClosed:
             print(f"Trade not closed.")

@@ -17,7 +17,7 @@ class SellStrat(Strategy):
         super().__init__(ticker, start, end, capital, sf)
         self.threshold = threshold
         self.amount_per_trade = amount_per_trade
-        self.buy_all(self.start)
+        self.buy_all(self.start, trigger="initial_restock")
 
     def check_and_do(
             self,
@@ -26,10 +26,10 @@ class SellStrat(Strategy):
         precio_actual = self.sf.get_price_in(fecha)
         if type(self.threshold) == tuple:
             if self.start <= fecha < self.end and not precio_actual == None and self.threshold[0] <= precio_actual <= self.threshold[1]:
-                self.sell(self.amount_per_trade, fecha)
+                self.sell(self.amount_per_trade, fecha, trigger="automatic_check")
         elif type(self.threshold) == float:
             if self.start <= fecha < self.end and not precio_actual == None and precio_actual == self.threshold:
-                self.sell(self.amount_per_trade, fecha)
+                self.sell(self.amount_per_trade, fecha, trigger="automatic_check")
         if fecha >= self.end:
             raise StopChecking
 
@@ -82,15 +82,15 @@ class DynamicSellStrat(SellStrat):
             if isinstance(self.threshold,float):
                 if self.threshold > 0:
                     if precio_actual >= (1 + self.threshold) * precio_a_comparar:
-                        self.sell(self.amount_per_trade, fecha)
+                        self.sell(self.amount_per_trade, fecha, trigger="dynamic_check")
                         
                 elif self.threshold < 0:
                     if precio_actual <= (1 + self.threshold) * precio_a_comparar:
-                        self.sell(self.amount_per_trade, fecha)
+                        self.sell(self.amount_per_trade, fecha, trigger="dynamic_check")
             elif isinstance(self.threshold,tuple):
                 rango_precios = sorted([(1+self.threshold[0])*precio_a_comparar,(1+self.threshold[1])*precio_a_comparar])
                 if rango_precios[0] <= precio_actual <= rango_precios[1]:
-                    self.sell(self.amount_per_trade, fecha)
+                    self.sell(self.amount_per_trade, fecha, trigger="dynamic_check")
 
         if fecha >= self.end:
             raise StopChecking

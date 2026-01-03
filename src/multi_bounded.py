@@ -2,7 +2,6 @@ from src.strategy import *
 from src.bounded import *
 from src.stockframe_manager import *
 from src.exceptions import *
-from rich.progress import track
 
 class MultiBoundedStrategy(Strategy):
 
@@ -19,30 +18,30 @@ class MultiBoundedStrategy(Strategy):
             take_profit_pct: float,
             max_holding_period: int = None,
             sizing_type:str = "static",
-            name:str = "undefined"
+            name:str = "undefined_multi_bounded_strategy"
             ):
         
         super().__init__(ticker, start, end, capital, sf, sizing_type=sizing_type, name=name)
         
-        self.target_prices = sorted(target_prices, reverse=True)
-        self.amount_per_trade = amount_per_trade
+        self.target_prices:list[float] = sorted(target_prices, reverse=True)
+        self.amount_per_trade:float = amount_per_trade
         
-        self.stop_loss_pct = stop_loss_pct
-        self.take_profit_pct = take_profit_pct
-        self.max_holding_period = max_holding_period
+        self.stop_loss_pct:float = stop_loss_pct
+        self.take_profit_pct:float = take_profit_pct
+        self.max_holding_period:str = max_holding_period
         
         self.active_strategies: list[BoundedStrategy] = []
         self.finished_strategies: list[BoundedStrategy] = []
         
-        self.triggered_targets = set() 
+        self.triggered_targets:set[float] = set() 
         
-        self.initial_ref_price = self.sf.get_last_valid_price(self.start)
+        self.initial_ref_price:float = self.sf.get_last_valid_price(self.start)
 
     def _spawn_child(
             self,
             fecha:str,
             trigger_reason:str
-            ):
+            ) -> None:
         
         if self.fiat >= self.amount_per_trade:            
 
@@ -71,7 +70,7 @@ class MultiBoundedStrategy(Strategy):
     def _check_trigger(
             self,
             fecha:str
-            ):
+            ) -> None:
         current_price = self.sf.get_price_in(fecha)
         if not current_price == None:
             for target in self.target_prices:
@@ -96,7 +95,7 @@ class MultiBoundedStrategy(Strategy):
     def check_and_do(
             self,
             fecha:str
-            ):
+            ) -> None:
         current_price = self.sf.get_price_in(fecha)
         if not current_price == None: 
             self._check_trigger(fecha)
@@ -109,8 +108,8 @@ class MultiBoundedStrategy(Strategy):
                     self.active_strategies.remove(strat)
                     self.fiat += strat.fiat 
                 
-    def execute(self):
-        for fecha in track(self.sf.index, description="Running Multi-Bounded..."):
+    def execute(self) -> None:
+        for fecha in track(self.sf.index, description=f"Executing {self.name}..."):
             if self.start <= fecha <= self.end:
                 self.check_and_do(fecha)
         
@@ -120,7 +119,7 @@ class MultiBoundedStrategy(Strategy):
             self,
             fecha:str,
             trigger:str="parent_force_close"
-            ):
+            ) -> None:
         
         for strat in self.active_strategies:
             if not strat.closed:
@@ -141,12 +140,12 @@ class MultiBoundedStrategy(Strategy):
         all_operations.sort(key=lambda x: x.fecha)
         return [operation.get_description() for operation in all_operations]
     
-    def print_operations(self):
+    def print_operations(self) -> None:
         print(f"--- Detalle de Operaciones ({len(self.finished_strategies) + len(self.active_strategies)} sub-estrategias) ---")
         for description in self.get_all_operations():
             print(description)
 
-    def print_performance(self):
+    def print_performance(self) -> None:
         all_strats = self.active_strategies + self.finished_strategies
         
         total_operations = sum(len(strat.operations) for strat in all_strats)
@@ -179,7 +178,7 @@ class MultiDynamicBoundedStrategy(MultiBoundedStrategy):
             trigger_lookback:str = "1 day",
             max_holding_period: int = None,
             sizing_type:str = "static",
-            name:str = "undefined"
+            name:str = "undefined_multi_dynamic_bounded_strategy"
             ):
 
         
@@ -200,7 +199,7 @@ class MultiDynamicBoundedStrategy(MultiBoundedStrategy):
     def _check_trigger(
             self,
             fecha:str
-            ):
+            ) -> None:
         
         current_price = self.sf.get_price_in(fecha)
         try:

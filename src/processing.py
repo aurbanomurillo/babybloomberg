@@ -2,8 +2,9 @@ import pandas as pd
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from src.exceptions import *
+from src.stockframe_manager import *
 
-def redondear_precio(datos: pd.DataFrame) -> pd.DataFrame:
+def redondear_precio(datos: pd.DataFrame) -> pd.DataFrame | StockFrame:
     if datos.empty:
         return datos
 
@@ -20,10 +21,16 @@ def redondear_precio(datos: pd.DataFrame) -> pd.DataFrame:
     datos.index = datos.index.astype(str)
     return datos
 
-def get_price_in(df, fecha:str) -> float:
-    return df.loc[fecha]['Close']
+def get_price_in(
+        df: StockFrame | pd.DataFrame,
+        fecha:str
+        ) -> float:
+    return float(df.loc[fecha]['Close'])
 
-def get_date_range(start_str: str, end_str: str) -> list[str]:
+def get_date_range(
+        start_str: str, 
+        end_str: str
+        ) -> list[str]:
     start = datetime.strptime(start_str, "%Y-%m-%d")
     end = datetime.strptime(end_str, "%Y-%m-%d")
     
@@ -36,7 +43,11 @@ def get_date_range(start_str: str, end_str: str) -> list[str]:
         
     return lista_fechas
 
-def restar_intervalo(fecha_str:str, intervalo_str:str) -> str:
+def restar_intervalo(
+        fecha_str:str,
+        intervalo_str:str
+        ) -> str:
+    
     fecha_dt = datetime.strptime(fecha_str, "%Y-%m-%d")
     
     partes = intervalo_str.split()

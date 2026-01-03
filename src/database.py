@@ -11,7 +11,7 @@ def guardar_en_db(
         nombre_tabla: str,
         df: pd.DataFrame,
         db_name: str = 'data/bolsa.db'
-        ):
+        ) -> None:
     
     with sqlite3.connect(db_name) as conexion:
         cursor = conexion.cursor()
@@ -35,7 +35,7 @@ def guardar_en_db(
 
         conexion.commit()
 
-def load_stock(ticker:str, ):
+def load_stock(ticker:str) -> None:
     if not os.path.exists('data/bolsa.db'):
         print("Archivo de datos inexistente. Se procederá a crear uno.")
     try:
@@ -53,8 +53,8 @@ def load_stock(ticker:str, ):
     except Exception as e:
         print(f"Falló {ticker}: {e}")
 
-def load_stocks(lista_tickers):
-    for ticker in track(lista_tickers, description = "Procesando..."):
+def load_stocks(lista_tickers: list[str]) -> None:
+    for ticker in track(lista_tickers, description = "Almacenando datos..."):
         load_stock(ticker)
     
 def get_primera_fecha(

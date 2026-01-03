@@ -13,18 +13,17 @@ class BuyStrategy(Strategy):
             amount_per_trade:float,
             threshold:tuple[float, float] | float,
             sizing_type:str = "static",
-            name:str = "undefined"
+            name:str = "undefined_static_buy_strategy"
             ):
         
-        super().__init__(ticker, start, end, capital, sf, sizing_type)
+        super().__init__(ticker, start, end, capital, sf, sizing_type=sizing_type, name=name)
         self.threshold = threshold
         self.amount_per_trade = amount_per_trade
-        self.name = name
 
     def check_and_do(
             self,
             fecha:str
-            ):
+            ) -> None:
         precio_actual = self.sf.get_price_in(fecha)
         if type(self.threshold) == tuple:
             if self.start <= fecha < self.end and not precio_actual == None and self.threshold[0] <= precio_actual <= self.threshold[1]:
@@ -35,8 +34,8 @@ class BuyStrategy(Strategy):
         if fecha >= self.end:
             raise StopChecking
     
-    def execute(self):
-        for fecha in track(self.sf.index, description="Processing trades..."):
+    def execute(self) -> None:
+        for fecha in track(self.sf.index, description=f"Executing {self.name}..."):
             try:
                 self.check_and_do(fecha)
             except NotEnoughCashError:
@@ -61,7 +60,7 @@ class DynamicBuyStrategy(BuyStrategy):
             threshold:tuple[float, float] | float,
             trigger_lookback:str = "1 day",
             sizing_type:str = "static",
-            name:str = "undefined"
+            name:str = "undefined_dynamic_buy_strategy"
             ):
         
         if isinstance(threshold, float):
@@ -79,12 +78,12 @@ class DynamicBuyStrategy(BuyStrategy):
             name = name
             )
             
-        self.trigger_lookback = trigger_lookback
+        self.trigger_lookback:str = trigger_lookback
 
     def check_and_do(
             self,
             fecha:str
-            ):
+            ) -> None:
         precio_actual = self.sf.get_price_in(fecha)
         precio_a_comparar = self.sf.get_last_valid_price(restar_intervalo(fecha,self.trigger_lookback))
 

@@ -1,4 +1,3 @@
-from rich.progress import track
 from src.processing import *
 from src.exceptions import *
 from src.strategy import *
@@ -10,23 +9,23 @@ class MultiStrategy(Strategy):
             strats: list[Strategy],
             ):
         
-        self.active_strategies = strats
-        self.finished_strategies = []
+        self.active_strategies:list[Strategy] = strats
+        self.finished_strategies:list[Strategy] = []
         
-        self.start = min(s.start for s in self.active_strategies)
-        self.end = max(s.end for s in self.active_strategies)
+        self.start:str = min(s.start for s in self.active_strategies)
+        self.end:str = max(s.end for s in self.active_strategies)
         
-        self.fiat = 0 
-        self.initial_capital = sum(s.initial_capital for s in self.active_strategies)
+        self.fiat:float = 0.0 
+        self.initial_capital:float = sum(s.initial_capital for s in self.active_strategies)
         
-        self.profits = 0
-        self.closed = False
-        self.name = "undefined"
+        self.profits:float = 0.0
+        self.closed:bool = False
+        self.name:str = "undefined_multi_strategy"
 
     def check_and_do(
             self, 
             fecha:str
-            ):
+            ) -> None:
         for strat in self.active_strategies[:]:
             try:
                 strat.check_and_do(fecha)
@@ -42,10 +41,10 @@ class MultiStrategy(Strategy):
                 self.finished_strategies.append(strat)
                 self.active_strategies.remove(strat)
 
-    def execute(self):
+    def execute(self) -> None:
         rango_fechas = get_date_range(self.start, self.end)
 
-        for fecha in track(rango_fechas, description="Running Multi-Strategy..."):
+        for fecha in track(rango_fechas, description=f"Executing {self.name}..."):
             self.check_and_do(fecha)
 
         self.close_trade(self.end)
@@ -54,7 +53,7 @@ class MultiStrategy(Strategy):
             self,
             fecha:str,
             trigger:str="force_close_global"
-            ):
+            ) -> None:
         
         for strat in self.active_strategies:
             if not strat.closed:
@@ -76,12 +75,12 @@ class MultiStrategy(Strategy):
         all_operations.sort(key=lambda x: x.fecha)
         return [op.get_description() for op in all_operations]
 
-    def print_operations(self):
+    def print_operations(self) -> None:
         print(f"--- Detalle de Operaciones ({len(self.finished_strategies) + len(self.active_strategies)} sub-estrategias) ---")
         for description in self.get_all_operations():
             print(description)
 
-    def print_performance(self):
+    def print_performance(self) -> None:
         all_strats = self.active_strategies + self.finished_strategies
         total_operations = sum(len(strat.operations) for strat in all_strats)
 

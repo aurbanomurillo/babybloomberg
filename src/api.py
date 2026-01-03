@@ -32,7 +32,8 @@ def obtener_tickers_sp500() -> list[str]:
 def descargar_datos_nuevos(
         ticker: str,
         start_date: str | None = None,
-        end_date: str | None = None) -> pd.DataFrame:
+        end_date: str | None = None
+        ) -> pd.DataFrame:
 
     if start_date == None:
         if end_date == None:

@@ -15,28 +15,31 @@ class Strategy():
             capital:float,
             sf:StockFrame,
             sizing_type:str = "static",
-            name:str = "undefined"
+            name:str = "undefined_strategy"
             ):
         
-        self.name = name
-        self.ticker = ticker
-        self.start = start
-        self.end = end
-        self.sf = sf
-        self.initial_capital = float(capital)
-        self.fiat = capital
-        self.stock = 0.0
-        self.profits = None
+        self.name:str = name
+        self.ticker:str = ticker
+        self.start:str = start
+        self.end:str = end
+        self.sf:StockFrame = sf
+        self.initial_capital:float = float(capital)
+        self.fiat:float = float(capital)
+        self.stock:float = 0.0
+        self.profits:float | None = None
         self.operations:list[Operation] = []
-        self.closed = False
-        self.sizing_type = sizing_type
+        self.closed:bool = False
 
         if sizing_type in ["static", "percentage initial", "percentage current"]:
-            self.sizing_type = sizing_type
+            self.sizing_type:str = sizing_type
         else:
             raise ValueError(f"Sizing type '{self.sizing_type}' not recognized.")
         
-    def _calculate_order_amount(self, quantity:float, override_sizing_type:str =None):
+    def _calculate_order_amount(
+            self, 
+            quantity:float, 
+            override_sizing_type:str = None
+            ) -> float:
 
         if override_sizing_type == None:
             current_sizing = self.sizing_type
@@ -61,7 +64,7 @@ class Strategy():
             fecha:str,
             trigger:str = "manual",
             sizing_type:str = None
-            ):
+            ) -> None:
 
         cash_amount = self._calculate_order_amount(quantity, override_sizing_type = sizing_type)
         
@@ -78,11 +81,11 @@ class Strategy():
                 raise NotEnoughCashError
     
     def buy_all(
-                self,
-                fecha:str,
-                trigger:str = "manual"
-                ):
-            self.buy(self.fiat, fecha, trigger=trigger, sizing_type="static")
+            self,
+            fecha:str,
+            trigger:str = "manual"
+            ) -> None:
+        self.buy(self.fiat, fecha, trigger=trigger, sizing_type="static")
 
     def sell(
             self,
@@ -90,7 +93,7 @@ class Strategy():
             fecha:str,
             trigger:str = "manual",
             sizing_type:str = None
-            ):
+            ) -> None:
         
         if not sizing_type == None:
             current_sizing = sizing_type
@@ -121,7 +124,7 @@ class Strategy():
             self,
             fecha:str,
             trigger:str = "manual"
-            ):
+            ) -> None:
         
         stock_price = self.sf.get_price_in(fecha)
         self.sell(self.stock * stock_price, fecha, trigger, sizing_type="static")
@@ -130,7 +133,7 @@ class Strategy():
             self,
             fecha:str,
             trigger:str = "force_close"
-            ):
+            ) -> None:
         if not self.closed:
             self.sell_all(fecha, trigger = trigger)
             self.profits = round(self.fiat - self.initial_capital, 2)
@@ -183,10 +186,11 @@ class Strategy():
             operations.append(operation.get_description())
         return operations
     
-    def __add__(self, strat2):
-
+    def __add__(
+            self, 
+            strat2
+            ):
         from src.multi_strategy import MultiStrategy
-
         if isinstance(self, MultiStrategy):
             if isinstance(strat2, MultiStrategy):
                 return MultiStrategy(self.strats + strat2.strats)
@@ -198,7 +202,11 @@ class Strategy():
             else:
                 return MultiStrategy([self, strat2])
 
-    def set_name(self, name:str):
+    def set_name(
+            self, 
+            name:str
+            ) -> None:
+        
         self.name = name
 
         

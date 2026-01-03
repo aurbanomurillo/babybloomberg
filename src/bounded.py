@@ -1,4 +1,3 @@
-from rich.progress import track
 from src.strategy import *
 from src.stockframe_manager import *
 from src.processing import *
@@ -16,19 +15,17 @@ class BoundedStrategy(Strategy):
             stop_loss: float,
             take_profit: float,
             max_holding_period: int = None,
-            sizing_type:str = "static"
+            sizing_type:str = "static",
+            name:str = "undefined_bounded_strategy"
             ):
         
-        super().__init__(ticker, start, end, capital, sf, sizing_type)
+        super().__init__(ticker, start, end, capital, sf, sizing_type=sizing_type, name=name)
         
-        self.stop_loss = stop_loss
-        self.take_profit = take_profit
-        self.max_holding_period = max_holding_period        
+        self.stop_loss:float = stop_loss
+        self.take_profit:float = take_profit
+        self.max_holding_period:float = max_holding_period        
         self.buy_all(self.start, trigger="initial_entry")
-        self.entry_price = self.sf.get_price_in(self.start)
-        self._validar_parametros()
-
-    def _validar_parametros(self):
+        self.entry_price:float = self.sf.get_price_in(self.start)
         if self.stop_loss >= self.entry_price:
             print(f"ADVERTENCIA: El Stop Loss ({self.stop_loss}) es mayor que el precio de entrada ({self.entry_price}). Se venderá inmediatamente.")
         if self.take_profit <= self.entry_price:
@@ -37,7 +34,7 @@ class BoundedStrategy(Strategy):
     def check_and_do(
             self,
             fecha:str
-            ):
+            ) -> None:
         current_price = self.sf.get_price_in(fecha)
         if not current_price == None:
             if current_price <= self.stop_loss:
@@ -53,8 +50,8 @@ class BoundedStrategy(Strategy):
                     self.close_trade(fecha, trigger="time_stop")
                     raise StopChecking
 
-    def execute(self):
-        for fecha in track(self.sf.index, description="Monitoring SL/TP..."):
+    def execute(self) -> None:
+        for fecha in track(self.sf.index, description=f"Executing {self.name}..."):
             if self.start <= fecha <= self.end:
                 try:
                     self.check_and_do(fecha)

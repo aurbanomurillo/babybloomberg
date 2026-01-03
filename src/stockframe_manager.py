@@ -8,7 +8,10 @@ class StockFrame(pd.DataFrame):
     def _constructor(self):
         return StockFrame
 
-    def get_price_in(self, fecha: str) -> float:
+    def get_price_in(
+            self, 
+            fecha: str
+            ) -> float | None:
         try:
             return float(self.loc[fecha]['Close'])
         except KeyError:
@@ -17,7 +20,8 @@ class StockFrame(pd.DataFrame):
     
     def get_last_valid_price(
             self,
-            target_date_str: str) -> float | None:
+            target_date_str: str
+            ) -> float | None:
         
         first_available_date = self.index[0] 
         current_date_str = target_date_str

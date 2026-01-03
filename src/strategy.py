@@ -1,3 +1,12 @@
+"""
+Base definition for trading strategies and portfolio management.
+
+This module defines the parent `Strategy` class, which handles the core mechanics
+of any trading simulation: tracking capital (fiat) and assets (stock), executing
+buy/sell orders, logging operations, and calculating performance metrics.
+It also supports operator overloading to combine strategies into a `MultiStrategy`.
+"""
+
 from rich.progress import track
 from src.exceptions import *
 from src.database import *
@@ -6,6 +15,26 @@ from src.operations_manager import *
 from src.stockframe_manager import *
 
 class Strategy():
+    """Base class representing a trading strategy.
+
+    Manages the state of a single trading entity, including its available capital,
+    stock inventory, and history of operations. It provides the fundamental methods
+    to execute trades (`buy`, `sell`) and calculate final results.
+
+    Attributes:
+        name (str): Identifier for the strategy.
+        ticker (str): Symbol of the asset being traded.
+        start (str): Start date of the simulation.
+        end (str): End date of the simulation.
+        sf (StockFrame): Data source for asset prices.
+        initial_capital (float): Starting cash amount.
+        fiat (float): Current available cash.
+        stock (float): Current quantity of the asset held.
+        profits (float | None): Realized profits (calculated only upon closing).
+        operations (list[Operation]): Log of all attempted transactions.
+        closed (bool): Flag indicating if the strategy has finalized its position.
+        sizing_type (str): Default method for calculating trade sizes ("static", etc.).
+    """
 
     def __init__(
             self,
@@ -17,7 +46,23 @@ class Strategy():
             sizing_type:str = "static",
             name:str = "undefined_strategy"
             ):
-        
+        """Initializes the strategy state.
+
+        Args:
+            ticker (str): Asset symbol.
+            start (str): Start date (YYYY-MM-DD).
+            end (str): End date (YYYY-MM-DD).
+            capital (float): Initial capital.
+            sf (StockFrame): Price data manager.
+            sizing_type (str, optional): Default position sizing method.
+                Options: "static" (fixed amount), "percentage initial" (% of starting cap),
+                "percentage current" (% of current cap). Defaults to "static".
+            name (str, optional): Strategy name. Defaults to "undefined_strategy".
+
+        Raises:
+            ValueError: If `sizing_type` is not one of the recognized options.
+        """
+
         self.name:str = name
         self.ticker:str = ticker
         self.start:str = start
@@ -40,6 +85,22 @@ class Strategy():
             quantity:float, 
             override_sizing_type:str = None
             ) -> float:
+        """Calculates the cash value of an order based on the sizing type.
+
+        Internal helper to translate a generic `quantity` input into a specific
+        monetary amount based on the selected sizing logic.
+
+        Args:
+            quantity (float): The raw input quantity (amount or percentage).
+            override_sizing_type (str, optional): A specific sizing type for this calculation
+                that overrides the instance default.
+
+        Returns:
+            float: The calculated cash amount to be used in the trade.
+
+        Raises:
+            ValueError: If the sizing type is invalid.
+        """
 
         if override_sizing_type == None:
             current_sizing = self.sizing_type
@@ -65,6 +126,22 @@ class Strategy():
             trigger:str = "manual",
             sizing_type:str = None
             ) -> None:
+        """Executes a buy order (Long entry).
+
+        Calculates the required cash based on the quantity and sizing type.
+        If sufficient funds are available, converts cash to stock at the current
+        price and logs a successful operation. If funds are insufficient, logs
+        a failed operation and raises an error.
+
+        Args:
+            quantity (float): Amount or percentage to buy.
+            fecha (str): Date of execution.
+            trigger (str, optional): Reason for the trade. Defaults to "manual".
+            sizing_type (str, optional): Override for position sizing.
+
+        Raises:
+            NotEnoughCashError: If `fiat` is less than the calculated order cost.
+        """
 
         cash_amount = self._calculate_order_amount(quantity, override_sizing_type = sizing_type)
         
@@ -85,6 +162,16 @@ class Strategy():
             fecha:str,
             trigger:str = "manual"
             ) -> None:
+        """Invests all available capital into the asset.
+
+        A convenience method that triggers a "static" buy using the current
+        `fiat` balance as the quantity.
+
+        Args:
+            fecha (str): Date of execution.
+            trigger (str, optional): Reason for the trade. Defaults to "manual".
+        """
+
         self.buy(self.fiat, fecha, trigger=trigger, sizing_type="static")
 
     def sell(
@@ -94,6 +181,22 @@ class Strategy():
             trigger:str = "manual",
             sizing_type:str = None
             ) -> None:
+        """Executes a sell order (Long exit).
+
+        Calculates the cash value of the stock to be sold.
+        If sufficient stock is owned, converts stock to cash at the current
+        price and logs a successful operation. If stock is insufficient, logs
+        a failed operation and raises an error.
+
+        Args:
+            quantity (float): Amount or percentage to sell.
+            fecha (str): Date of execution.
+            trigger (str, optional): Reason for the trade. Defaults to "manual".
+            sizing_type (str, optional): Override for position sizing.
+
+        Raises:
+            NotEnoughStockError: If `stock` holdings are less than the sell amount.
+        """
         
         if not sizing_type == None:
             current_sizing = sizing_type
@@ -125,6 +228,15 @@ class Strategy():
             fecha:str,
             trigger:str = "manual"
             ) -> None:
+        """Liquidates the entire position.
+
+        Calculates the total value of the currently held stock and executes
+        a "static" sell for that full amount.
+
+        Args:
+            fecha (str): Date of execution.
+            trigger (str, optional): Reason for the trade. Defaults to "manual".
+        """
         
         stock_price = self.sf.get_price_in(fecha)
         self.sell(self.stock * stock_price, fecha, trigger, sizing_type="static")
@@ -134,21 +246,53 @@ class Strategy():
             fecha:str,
             trigger:str = "force_close"
             ) -> None:
+        """Forces the closure of the trading position.
+
+        Sells all holdings, calculates the final profits relative to the initial
+        capital, and marks the strategy as closed. This is typically called at
+        the end of a simulation or when a stop condition is met.
+
+        Args:
+            fecha (str): Date of closure.
+            trigger (str, optional): Reason for closure. Defaults to "force_close".
+        """
+
         if not self.closed:
             self.sell_all(fecha, trigger = trigger)
             self.profits = round(self.fiat - self.initial_capital, 2)
             self.closed = True
     
     def get_profit(self) -> float:
+        """Retrieves the absolute profit realized by the strategy.
+
+        Returns:
+            float: Total profit (Final Capital - Initial Capital).
+
+        Raises:
+            TradeNotClosed: If called before `close_trade` has been executed.
+        """
+
         if not self.profits == None:
             return self.profits
         else:
             raise TradeNotClosed
     
     def get_returns(self) -> float:
+        """Calculates the Return on Investment (ROI).
+
+        Returns:
+            float: The returns expressed as a decimal (e.g., 0.15 for 15%).
+        """
+
         return round(self.profits / self.initial_capital, 8)
 
     def print_performance(self):
+        """Prints a formatted summary of the strategy's performance.
+
+        Displays the number of operations, initial and final capital, absolute
+        profit, and percentage returns to the console.
+        """
+
         try:
             print(f"-" * 50)
             print(f" --- Performance of {self.name} ---")
@@ -162,11 +306,16 @@ class Strategy():
             print(f"Trade not closed.")
 
     def print_operations(self):
+        """Prints the description of every operation recorded in the log."""
+
+        print(f"--- Detalle de Operaciones en {self.name} ({len(self.operations)} operaciones) ---")
         for operation in self.operations:
             print(operation.get_description())
     
 
     def get_succesful_operations(self) -> list[str]:
+        """Returns a list of descriptions for all successfully executed trades."""
+
         succesful_operations = []
         for operation in self.operations:
             if operation.succesful:
@@ -174,6 +323,8 @@ class Strategy():
         return succesful_operations
             
     def get_failed_operations(self) -> list[str]:
+        """Returns a list of descriptions for trades rejected due to insufficient funds/stock."""
+
         unsuccesful_operations = []
         for operation in self.operations:
             if not operation.succesful:
@@ -181,6 +332,8 @@ class Strategy():
         return unsuccesful_operations
 
     def get_all_operations(self) -> list[str]:
+        """Returns a list of descriptions for all attempted trades (both success and fail)."""
+
         operations = []
         for operation in self.operations:
             operations.append(operation.get_description())
@@ -190,6 +343,19 @@ class Strategy():
             self, 
             strat2
             ):
+        """Overloads the `+` operator to combine strategies.
+
+        Allows creating a `MultiStrategy` container by simply adding two strategy
+        instances together (e.g., `strat1 + strat2`). Handles combinations of
+        individual strategies and existing MultiStrategies.
+
+        Args:
+            strat2 (Strategy | MultiStrategy): The strategy to combine with this one.
+
+        Returns:
+            MultiStrategy: A new container holding both strategies.
+        """
+
         from src.multi_strategy import MultiStrategy
         if isinstance(self, MultiStrategy):
             if isinstance(strat2, MultiStrategy):
@@ -206,6 +372,7 @@ class Strategy():
             self, 
             name:str
             ) -> None:
+        """Updates the identifier name of the strategy."""
         
         self.name = name
 

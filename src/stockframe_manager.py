@@ -1,3 +1,12 @@
+"""
+Custom DataFrame specialization for financial time series management.
+
+This module defines the `StockFrame` class, which extends the standard pandas
+DataFrame. It adds specific functionality for safely retrieving stock prices
+and handling data gaps (e.g., weekends or holidays) by searching for the last
+valid known price.
+"""
+
 import pandas as pd
 from datetime import datetime, timedelta
 
@@ -6,12 +15,31 @@ class StockFrame(pd.DataFrame):
     @property
 
     def _constructor(self):
+        """Internal property to ensure slice/manipulation returns StockFrame instances.
+
+        Overrides the standard pandas constructor property so that operations
+        performed on a StockFrame (like slicing) return a StockFrame object
+        instead of a generic pandas DataFrame.
+        """
+
         return StockFrame
 
     def get_price_in(
             self, 
             fecha: str
             ) -> float | None:
+        """Retrieves the closing price for a specific date.
+
+        Safely attempts to access the 'Close' column for the given index.
+        Returns None instead of raising an error if the date is not found.
+
+        Args:
+            fecha (str): The target date in "YYYY-MM-DD" format.
+
+        Returns:
+            float | None: The closing price if the date exists, otherwise None.
+        """
+
         try:
             return float(self.loc[fecha]['Close'])
         except KeyError:
@@ -22,6 +50,19 @@ class StockFrame(pd.DataFrame):
             self,
             target_date_str: str
             ) -> float | None:
+        """Finds the most recent valid closing price on or before a target date.
+
+        Useful for getting a reference price when the target date falls on a
+        weekend or holiday. It iterates backwards from the `target_date_str`
+        until it finds a date with available data in the index.
+
+        Args:
+            target_date_str (str): The starting date for the backward search (YYYY-MM-DD).
+
+        Returns:
+            float | None: The price of the last valid trading day found, or None
+                if the search goes back past the beginning of the dataset.
+        """
         
         first_available_date = self.index[0] 
         current_date_str = target_date_str

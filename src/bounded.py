@@ -15,10 +15,11 @@ class BoundedStrategy(Strategy):
             sf:StockFrame,
             stop_loss: float,
             take_profit: float,
-            max_holding_period: int = None
+            max_holding_period: int = None,
+            sizing_type:str = "static"
             ):
         
-        super().__init__(ticker, start, end, capital, sf)
+        super().__init__(ticker, start, end, capital, sf, sizing_type)
         
         self.stop_loss = stop_loss
         self.take_profit = take_profit

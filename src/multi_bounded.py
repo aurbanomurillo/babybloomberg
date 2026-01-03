@@ -17,10 +17,11 @@ class MultiBoundedStrategy(Strategy):
             amount_per_trade: float,
             stop_loss_pct: float,       
             take_profit_pct: float,
-            max_holding_period: int = None
+            max_holding_period: int = None,
+            sizing_type:str = "static"
             ):
         
-        super().__init__(ticker, start, end, capital, sf)
+        super().__init__(ticker, start, end, capital, sf, sizing_type)
         
         self.target_prices = sorted(target_prices, reverse=True)
         self.amount_per_trade = amount_per_trade

@@ -11,10 +11,11 @@ class BuyStrategy(Strategy):
             capital:float,
             sf:StockFrame,
             amount_per_trade:float,
-            threshold:tuple[float, float] | float
+            threshold:tuple[float, float] | float,
+            sizing_type:str = "static"
             ):
         
-        super().__init__(ticker, start, end, capital, sf)
+        super().__init__(ticker, start, end, capital, sf, sizing_type)
         self.threshold = threshold
         self.amount_per_trade = amount_per_trade
 
@@ -37,8 +38,8 @@ class BuyStrategy(Strategy):
             try:
                 self.check_and_do(fecha)
             except NotEnoughCashError:
-                # print(f"Aviso: No hay efectivo para comprar en {fecha}")
-                continue 
+                self.buy_all(fecha, trigger="last_automatic_check")
+                break
             except StopChecking:
                 break
 

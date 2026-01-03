@@ -11,10 +11,11 @@ class SellStrategy(Strategy):
             capital:float,
             sf:StockFrame,
             amount_per_trade:float,
-            threshold:tuple[float, float] | float
+            threshold:tuple[float, float] | float,
+            sizing_type:str = "static"
             ):
         
-        super().__init__(ticker, start, end, capital, sf)
+        super().__init__(ticker, start, end, capital, sf, sizing_type)
         self.threshold = threshold
         self.amount_per_trade = amount_per_trade
         self.buy_all(self.start, trigger="initial_restock")
@@ -38,6 +39,7 @@ class SellStrategy(Strategy):
             try:
                 self.check_and_do(fecha)
             except NotEnoughStockError:
+                self.close_trade(fecha)
                 break
             except StopChecking:
                 break

@@ -22,42 +22,43 @@ if __name__ == "__main__":
 
     capital = 1000000
 
-    hold = Strategy(ticker, start, end, capital, sf)
-    hold.buy_all(start)
-    hold.close_trade(end)
-    hold.print_performance()
+    # hold = Strategy(ticker, start, end, capital, sf)
+    # hold.buy_all(start)
+    # hold.close_trade(end)
+    # hold.print_performance()
 
-    sell_at_price = SellStrategy(ticker,start,end,capital,sf,1,(0.12,0.14))
+    sell_at_price = SellStrategy(ticker,start,end,capital,sf,0.1,(0.12,0.14),sizing_type="percentage current")
     sell_at_price.execute()
+    sell_at_price.print_operations()
     sell_at_price.print_performance()
 
-    buy_at_price = BuyStrategy(ticker,start,end,capital,sf,1,(0.08,0.10))
-    buy_at_price.execute()
-    buy_at_price.print_performance()
+    # buy_at_price = BuyStrategy(ticker,start,end,capital,sf,1,(0.08,0.10))
+    # buy_at_price.execute()
+    # buy_at_price.print_performance()
 
-    sell_at_price = SellStrategy(ticker,start,end,capital,sf,1,(0.12,0.14))
-    buy_at_price = BuyStrategy(ticker,start,end,capital,sf,1,(0.08,0.10))
-    new_strat = sell_at_price + buy_at_price
-    new_strat.execute()
-    new_strat.print_performance()
+    # sell_at_price = SellStrategy(ticker,start,end,capital,sf,1,(0.12,0.14))
+    # buy_at_price = BuyStrategy(ticker,start,end,capital,sf,1,(0.08,0.10))
+    # new_strat = sell_at_price + buy_at_price
+    # new_strat.execute()
+    # new_strat.print_performance()
 
-    sell_scare = DynamicSellStrategy(ticker,start,end,capital,sf,1,-0.03,"1 day")
-    sell_scare.execute()
-    sell_scare.print_performance()
+    # sell_scare = DynamicSellStrategy(ticker,start,end,capital,sf,1,-0.03,"1 day")
+    # sell_scare.execute()
+    # sell_scare.print_performance()
 
-    buy_dip = DynamicBuyStrategy(ticker,start,end,capital,sf,1,-0.03,"1 day")
-    buy_dip.execute()
-    buy_dip.print_performance()
+    # buy_dip = DynamicBuyStrategy(ticker,start,end,capital,sf,1,-0.03,"1 day")
+    # buy_dip.execute()
+    # buy_dip.print_performance()
 
-    late_start = "2024-01-02"
-    sltp = BoundedStrategy(ticker, late_start, end, capital, sf, 150, 500) 
-    sltp.execute()
-    sltp.print_performance()
+    # late_start = "2024-01-02"
+    # sltp = BoundedStrategy(ticker, late_start, end, capital, sf, 150, 500) 
+    # sltp.execute()
+    # sltp.print_performance()
 
-    specific_sltp = MultiBoundedStrategy(ticker, start, end, capital, sf, [0.08, 0.1], 1, -0.9, 2)
-    specific_sltp.execute()
-    specific_sltp.print_performance()
+    # specific_sltp = MultiBoundedStrategy(ticker, start, end, capital, sf, [0.08, 0.1], 1, -0.9, 2)
+    # specific_sltp.execute()
+    # specific_sltp.print_performance()
 
-    sltp_dip = MultiDynamicBoundedStrategy(ticker, start, end, capital, sf, 1, -0.02, +0.02, -0.04, "3 d")
-    sltp_dip.execute()
-    sltp_dip.print_performance()
+    # sltp_dip = MultiDynamicBoundedStrategy(ticker, start, end, capital, sf, 1, -0.02, +0.02, -0.04, "3 d")
+    # sltp_dip.execute()
+    # sltp_dip.print_performance()

@@ -1,7 +1,7 @@
-from src.strategy_manager import *
+from src.strategy import *
 from src.stockframe_manager import *
 
-class BuyStrat(Strategy):
+class SellStrategy(Strategy):
     
     def __init__(
             self,
@@ -17,6 +17,7 @@ class BuyStrat(Strategy):
         super().__init__(ticker, start, end, capital, sf)
         self.threshold = threshold
         self.amount_per_trade = amount_per_trade
+        self.buy_all(self.start, trigger="initial_restock")
 
     def check_and_do(
             self,
@@ -25,26 +26,25 @@ class BuyStrat(Strategy):
         precio_actual = self.sf.get_price_in(fecha)
         if type(self.threshold) == tuple:
             if self.start <= fecha < self.end and not precio_actual == None and self.threshold[0] <= precio_actual <= self.threshold[1]:
-                self.buy(self.amount_per_trade, fecha, trigger="automatic_check")
+                self.sell(self.amount_per_trade, fecha, trigger="automatic_check")
         elif type(self.threshold) == float:
             if self.start <= fecha < self.end and not precio_actual == None and precio_actual == self.threshold:
-                self.buy(self.amount_per_trade, fecha, trigger="automatic_check")
+                self.sell(self.amount_per_trade, fecha, trigger="automatic_check")
         if fecha >= self.end:
             raise StopChecking
-    
+
     def execute(self):
-        for fecha in track(self.sf.index, description="Processing trades..."):
+        for fecha in track(self.sf.index, description = "Processing trades..."):
             try:
                 self.check_and_do(fecha)
-            except NotEnoughCashError:
-                # print(f"Aviso: No hay efectivo para comprar en {fecha}")
-                continue 
+            except NotEnoughStockError:
+                break
             except StopChecking:
                 break
 
         self.close_trade(self.end)
 
-class DynamicBuyStrat(BuyStrat):
+class DynamicSellStrategy(SellStrategy):
     
     def __init__(
             self,
@@ -57,13 +57,14 @@ class DynamicBuyStrat(BuyStrat):
             threshold:tuple[float, float] | float,
             past_interval:str,
             ):
+        
         if isinstance(threshold, float):
             if threshold <= -1:
                 raise NotValidIntervalError("El threshold no puede ser -100% o menor.")
         elif isinstance(threshold, tuple):
             if threshold[0] <= -1 or threshold[1] <= -1:
                 raise NotValidIntervalError("Ningún límite del rango puede ser -100% o menor.")
-        
+
         super().__init__(ticker, start, end, capital, sf, amount_per_trade, threshold)
         self.past_interval = past_interval
 
@@ -81,15 +82,15 @@ class DynamicBuyStrat(BuyStrat):
             if isinstance(self.threshold,float):
                 if self.threshold > 0:
                     if precio_actual >= (1 + self.threshold) * precio_a_comparar:
-                        self.buy(self.amount_per_trade, fecha, trigger="dynamic_check")
+                        self.sell(self.amount_per_trade, fecha, trigger="dynamic_check")
                         
                 elif self.threshold < 0:
                     if precio_actual <= (1 + self.threshold) * precio_a_comparar:
-                        self.buy(self.amount_per_trade, fecha, trigger="dynamic_check")
+                        self.sell(self.amount_per_trade, fecha, trigger="dynamic_check")
             elif isinstance(self.threshold,tuple):
                 rango_precios = sorted([(1+self.threshold[0])*precio_a_comparar,(1+self.threshold[1])*precio_a_comparar])
                 if rango_precios[0] <= precio_actual <= rango_precios[1]:
-                    self.buy(self.amount_per_trade, fecha, trigger="dynamic_check")
+                    self.sell(self.amount_per_trade, fecha, trigger="dynamic_check")
 
         if fecha >= self.end:
             raise StopChecking

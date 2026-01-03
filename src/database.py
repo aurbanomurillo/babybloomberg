@@ -7,7 +7,6 @@ from src.processing import *
 from src.exceptions import *
 from src.stockframe_manager import *
 
-
 def guardar_en_db(
         nombre_tabla: str,
         df: pd.DataFrame,
@@ -53,7 +52,6 @@ def load_stock(ticker:str, ):
         # print(f"{ticker}: actualizado desde {datos_limpios['Fecha'].iloc[0]} hasta {datos_limpios['Fecha'].iloc[-1]}")
     except Exception as e:
         print(f"Falló {ticker}: {e}")
-
 
 def load_stocks(lista_tickers):
     for ticker in track(lista_tickers, description = "Procesando..."):

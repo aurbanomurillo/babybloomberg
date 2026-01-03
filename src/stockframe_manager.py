@@ -2,7 +2,9 @@ import pandas as pd
 from datetime import datetime, timedelta
 
 class StockFrame(pd.DataFrame):
+
     @property
+
     def _constructor(self):
         return StockFrame
 
@@ -32,3 +34,4 @@ class StockFrame(pd.DataFrame):
             current_date_str = previous_date_dt.strftime("%Y-%m-%d")
 
         return None
+    

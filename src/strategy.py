@@ -102,6 +102,7 @@ class Strategy():
             print(f"Final capital = {round(self.fiat, 2)}$.")
             print(f"Final profit = {round(self.get_profit(), 2)}$")
             print(f"Final returns (percentage) = {round(self.get_returns() * 100, 4)}%")
+            print(f"-" * 50)
         except TradeNotClosed:
             print(f"Trade not closed.")
 
@@ -130,21 +131,21 @@ class Strategy():
             operations.append(operation.get_description())
         return operations
     
-
     def __add__(self, strat2):
 
-        from src.multi_strategy_manager import MultiStrat
+        from src.multi_strategy import MultiStrategy
 
-        if isinstance(self, MultiStrat):
-            if isinstance(strat2, MultiStrat):
-                return MultiStrat(self.strats + strat2.strats)
+        if isinstance(self, MultiStrategy):
+            if isinstance(strat2, MultiStrategy):
+                return MultiStrategy(self.strats + strat2.strats)
             else:
-                return MultiStrat(self.strats + [strat2])
+                return MultiStrategy(self.strats + [strat2])
         else:
-            if isinstance(strat2, MultiStrat):
-                return MultiStrat(strat2.strats + [self])
+            if isinstance(strat2, MultiStrategy):
+                return MultiStrategy(strat2.strats + [self])
             else:
-                return MultiStrat([self, strat2])
+                return MultiStrategy([self, strat2])
 
     def set_name(self, name:str):
         self.name = name
+        

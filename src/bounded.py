@@ -1,5 +1,5 @@
 from rich.progress import track
-from src.strategy_manager import *
+from src.strategy import *
 from src.stockframe_manager import *
 from src.processing import *
 
@@ -63,5 +63,3 @@ class BoundedStrategy(Strategy):
                     break
         if not self.closed:
             self.close_trade(self.end)
-
-

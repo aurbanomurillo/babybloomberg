@@ -7,17 +7,13 @@ def redondear_precio(datos: pd.DataFrame) -> pd.DataFrame:
     if datos.empty:
         return datos
 
-    # Aplanar MultiIndex si existe (común en nuevas versiones de yfinance)
     if isinstance(datos.columns, pd.MultiIndex):
         datos.columns = datos.columns.get_level_values(0)
     
     datos.index.name = "Fecha" 
-    
-    # Lista de posibles columnas de precio
     columnas_precio = ['Open', 'High', 'Low', 'Close', 'Adj Close']
     
     for col in columnas_precio:
-        # IMPORTANTE: Verificamos si la columna existe antes de tocarla
         if col in datos.columns:
             datos[col] = datos[col].astype(float).round(2)
     

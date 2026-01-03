@@ -1,9 +1,8 @@
-from src.strategy_manager import *
-from src.bounded_strategy import *
+from src.strategy import *
+from src.bounded import *
 from src.stockframe_manager import *
 from src.exceptions import *
 from rich.progress import track
-
 
 class MultiBoundedStrategy(Strategy):
 
@@ -37,7 +36,10 @@ class MultiBoundedStrategy(Strategy):
         
         self.initial_ref_price = self.sf.get_last_valid_price(self.start)
 
-    def _spawn_child(self, fecha:str, trigger_reason:str):
+    def _spawn_child(
+            self,
+            fecha:str,
+            trigger_reason:str):
         
         if self.fiat >= self.amount_per_trade:            
 
@@ -70,7 +72,7 @@ class MultiBoundedStrategy(Strategy):
         current_price = self.sf.get_price_in(fecha)
         if not current_price == None:
             for target in self.target_prices:
-                if target not in self.triggered_targets:
+                if not target in self.triggered_targets:
                     
                     condition_met = False
                     
@@ -85,7 +87,7 @@ class MultiBoundedStrategy(Strategy):
                             condition_met = True
 
                     if condition_met:
-                        self._spawn_child(fecha, trigger_reason=f"Target {target}$ hit")
+                        self._spawn_child(fecha, trigger_reason=f"Static target {target}$ hit")
                         self.triggered_targets.add(target)
 
     def check_and_do(
@@ -105,7 +107,7 @@ class MultiBoundedStrategy(Strategy):
                     self.fiat += strat.fiat 
                 
     def execute(self):
-        for fecha in track(self.sf.index, description="Running Multi-Grid..."):
+        for fecha in track(self.sf.index, description="Running Multi-Bounded..."):
             if self.start <= fecha <= self.end:
                 self.check_and_do(fecha)
         
@@ -125,7 +127,7 @@ class MultiBoundedStrategy(Strategy):
         
         self.active_strategies = []
         self.profits = round(self.fiat - self.initial_capital, 2)
-        self.closed = True
+        self.closed = True  
 
     def get_all_operations(self) -> list[str]:
         all_strats = self.active_strategies + self.finished_strategies
@@ -153,9 +155,9 @@ class MultiBoundedStrategy(Strategy):
             print(f"Final capital = {round(self.fiat, 2)}$.")
             print(f"Final profit = {round(self.get_profit(), 2)}$")
             print(f"Final returns (percentage) = {round(self.get_returns() * 100, 4)}%")
+            print(f"-" * 50)
         except TradeNotClosed:
             print(f"Trade not closed.")
-
 
 class MultiDynamicBoundedStrategy(MultiBoundedStrategy):
 
@@ -214,9 +216,6 @@ class MultiDynamicBoundedStrategy(MultiBoundedStrategy):
 
             if condition_met:
                 if self.trigger_pct < 0:
-                    type_str = "Dip"
+                    self._spawn_child(fecha, trigger_reason=f"Dip {round(variacion*100, 2)}% in {self.trigger_lookback}")
                 else:
-                    type_str = "Breakout"
-
-                reason = f"{type_str} {round(variacion*100, 2)}% in {self.trigger_lookback}"
-                self._spawn_child(fecha, trigger_reason=reason)
+                    self._spawn_child(fecha, trigger_reason=f"Breakout {round(variacion*100, 2)}% in {self.trigger_lookback}")

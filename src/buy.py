@@ -12,12 +12,14 @@ class BuyStrategy(Strategy):
             sf:StockFrame,
             amount_per_trade:float,
             threshold:tuple[float, float] | float,
-            sizing_type:str = "static"
+            sizing_type:str = "static",
+            name:str = "undefined"
             ):
         
         super().__init__(ticker, start, end, capital, sf, sizing_type)
         self.threshold = threshold
         self.amount_per_trade = amount_per_trade
+        self.name = name
 
     def check_and_do(
             self,
@@ -57,8 +59,11 @@ class DynamicBuyStrategy(BuyStrategy):
             sf:StockFrame,
             amount_per_trade:float,
             threshold:tuple[float, float] | float,
-            past_interval:str,
+            trigger_lookback:str = "1 day",
+            sizing_type:str = "static",
+            name:str = "undefined"
             ):
+        
         if isinstance(threshold, float):
             if threshold <= -1:
                 raise NotValidIntervalError("El threshold no puede ser -100% o menor.")
@@ -66,15 +71,22 @@ class DynamicBuyStrategy(BuyStrategy):
             if threshold[0] <= -1 or threshold[1] <= -1:
                 raise NotValidIntervalError("Ningún límite del rango puede ser -100% o menor.")
         
-        super().__init__(ticker, start, end, capital, sf, amount_per_trade, threshold)
-        self.past_interval = past_interval
+        super().__init__(
+            ticker, start, end, capital, sf, 
+            amount_per_trade, 
+            threshold,
+            sizing_type = sizing_type,
+            name = name
+            )
+            
+        self.trigger_lookback = trigger_lookback
 
     def check_and_do(
             self,
             fecha:str
             ):
         precio_actual = self.sf.get_price_in(fecha)
-        precio_a_comparar = self.sf.get_last_valid_price(restar_intervalo(fecha,self.past_interval))
+        precio_a_comparar = self.sf.get_last_valid_price(restar_intervalo(fecha,self.trigger_lookback))
 
         if (self.start <= fecha < self.end and
                 not precio_actual == None and

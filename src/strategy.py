@@ -14,9 +14,11 @@ class Strategy():
             end:str,
             capital:float,
             sf:StockFrame,
-            sizing_type:str = "static"
+            sizing_type:str = "static",
+            name:str = "undefined"
             ):
         
+        self.name = name
         self.ticker = ticker
         self.start = start
         self.end = end
@@ -62,16 +64,19 @@ class Strategy():
             ):
 
         cash_amount = self._calculate_order_amount(quantity, override_sizing_type = sizing_type)
-        stock_price = self.sf.get_price_in(fecha)
         
-        if self.fiat - cash_amount >= -0.000001:
-            self.fiat -= cash_amount
-            self.stock += float(round(cash_amount/stock_price, 8))
-            self.operations.append(Operation("compra", cash_amount, self.ticker, stock_price, True, fecha, trigger))
-        else:
-            self.operations.append(Operation("compra", cash_amount, self.ticker, stock_price, False, fecha, trigger))
-            raise NotEnoughCashError
-        
+        if cash_amount >= 0.01:
+
+            stock_price = self.sf.get_price_in(fecha)
+            
+            if self.fiat - cash_amount >= -0.000001:
+                self.fiat = round(self.fiat - cash_amount, 2)
+                self.stock += float(round(cash_amount/stock_price, 8))
+                self.operations.append(Operation("compra", cash_amount, self.ticker, stock_price, True, fecha, trigger))
+            else:
+                self.operations.append(Operation("compra", cash_amount, self.ticker, stock_price, False, fecha, trigger))
+                raise NotEnoughCashError
+    
     def buy_all(
                 self,
                 fecha:str,
@@ -95,20 +100,22 @@ class Strategy():
         stock_price = self.sf.get_price_in(fecha)
 
         if current_sizing == "percentage current":
-            cash_amount = self.stock * stock_price * quantity
+            cash_amount = round(self.stock * stock_price * quantity, 2)
         else:
             cash_amount = self._calculate_order_amount(quantity, override_sizing_type=sizing_type)
         
-        stock_amount = float(round(cash_amount/stock_price, 8))
+        if cash_amount >= 0.01:
         
-        if self.stock - stock_amount >= -0.000001:
+            stock_amount = float(round(cash_amount/stock_price, 8))
+            
+            if self.stock - stock_amount >= -0.000001:
 
-            self.fiat += float(cash_amount)
-            self.stock -= stock_amount
-            self.operations.append(Operation("venta", cash_amount, self.ticker, stock_price, True, fecha, trigger))
-        else:
-            self.operations.append(Operation("venta", cash_amount, self.ticker, stock_price, False, fecha, trigger))
-            raise NotEnoughStockError
+                self.fiat = round(float(self.fiat + cash_amount),2)
+                self.stock -= stock_amount
+                self.operations.append(Operation("venta", cash_amount, self.ticker, stock_price, True, fecha, trigger))
+            else:
+                self.operations.append(Operation("venta", cash_amount, self.ticker, stock_price, False, fecha, trigger))
+                raise NotEnoughStockError
         
     def sell_all(
             self,
@@ -141,6 +148,7 @@ class Strategy():
     def print_performance(self):
         try:
             print(f"-" * 50)
+            print(f" --- Performance of {self.name} ---")
             print(f"{len(self.operations)} operations executed.")
             print(f"Initial capital = {round(self.initial_capital, 2)}$.")
             print(f"Final capital = {round(self.fiat, 2)}$.")

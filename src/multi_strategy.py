@@ -21,6 +21,7 @@ class MultiStrategy(Strategy):
         
         self.profits = 0
         self.closed = False
+        self.name = "undefined"
 
     def check_and_do(
             self, 
@@ -29,7 +30,7 @@ class MultiStrategy(Strategy):
         for strat in self.active_strategies[:]:
             try:
                 strat.check_and_do(fecha)
-            except (StopChecking, NotEnoughStockError):
+            except (StopChecking, NotEnoughStockError, NotEnoughCashError):
                 if not strat.closed:
                     try:
                         strat.close_trade(fecha, trigger="sub_strategy_finish")
@@ -86,6 +87,7 @@ class MultiStrategy(Strategy):
 
         try:
             print(f"-" * 50)
+            print(f" --- Performance of {self.name} ---")
             print(f"{total_operations} operations executed across {len(all_strats)} sub-strategies.")
             print(f"Initial capital = {round(self.initial_capital, 2)}$.")
             print(f"Final capital = {round(self.fiat, 2)}$.")

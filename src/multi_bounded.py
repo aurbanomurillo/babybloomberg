@@ -18,10 +18,11 @@ class MultiBoundedStrategy(Strategy):
             stop_loss_pct: float,       
             take_profit_pct: float,
             max_holding_period: int = None,
-            sizing_type:str = "static"
+            sizing_type:str = "static",
+            name:str = "undefined"
             ):
         
-        super().__init__(ticker, start, end, capital, sf, sizing_type)
+        super().__init__(ticker, start, end, capital, sf, sizing_type=sizing_type, name=name)
         
         self.target_prices = sorted(target_prices, reverse=True)
         self.amount_per_trade = amount_per_trade
@@ -40,7 +41,8 @@ class MultiBoundedStrategy(Strategy):
     def _spawn_child(
             self,
             fecha:str,
-            trigger_reason:str):
+            trigger_reason:str
+            ):
         
         if self.fiat >= self.amount_per_trade:            
 
@@ -151,6 +153,7 @@ class MultiBoundedStrategy(Strategy):
 
         try:
             print(f"-" * 50)
+            print(f" --- Performance of {self.name} ---")
             print(f"{total_operations} operations executed across {len(all_strats)} sub-strategies.")
             print(f"Initial capital = {round(self.initial_capital, 2)}$.")
             print(f"Final capital = {round(self.fiat, 2)}$.")
@@ -173,9 +176,12 @@ class MultiDynamicBoundedStrategy(MultiBoundedStrategy):
             stop_loss_pct: float,       
             take_profit_pct: float,     
             trigger_pct: float,
-            trigger_lookback: str,      
-            max_holding_period: int = None
+            trigger_lookback:str = "1 day",
+            max_holding_period: int = None,
+            sizing_type:str = "static",
+            name:str = "undefined"
             ):
+
         
         super().__init__(
             ticker, start, end, capital, sf, 
@@ -183,8 +189,10 @@ class MultiDynamicBoundedStrategy(MultiBoundedStrategy):
             amount_per_trade=amount_per_trade, 
             stop_loss_pct=stop_loss_pct, 
             take_profit_pct=take_profit_pct, 
-            max_holding_period=max_holding_period
-        )
+            max_holding_period=max_holding_period,
+            sizing_type = sizing_type,
+            name = name
+            )
         
         self.trigger_pct = trigger_pct
         self.trigger_lookback = trigger_lookback

@@ -1,0 +1,99 @@
+================================================================================
+                       BABYBLOOMBERG - DESARROLLO GUI
+                            ROADMAP DEL PROYECTO
+================================================================================
+
+OBJETIVO GENERAL:
+Transformar el motor de backtesting de línea de comandos en una aplicación de
+escritorio completa con interfaz gráfica (Tkinter), gestión visual de datos,
+constructor de estrategias y análisis de rendimiento avanzado.
+
+--------------------------------------------------------------------------------
+FASE 1: EL DASHBOARD DE MERCADO (Cimientos)
+--------------------------------------------------------------------------------
+Objetivo: Crear la ventana principal, conectar la base de datos y visualizar
+el mercado profesionalmente con velas japonesas.
+
+1. Estructura Base de la GUI
+   [ ] Crear ventana principal (Main Window) con Tkinter.
+   [ ] Implementar sistema de navegación (Tabs/Notebook):
+       - Tab 1: "Market Data" (Visualización y descarga).
+       - Tab 2: "Strategy Builder" (Configuración).
+       - Tab 3: "Backtest Results" (Análisis).
+
+2. Conexión de Datos (Backend Integration)
+   [ ] Panel de control "Data Manager":
+       - Input para símbolo/ticker (ej: "AAPL", "SPY").
+       - Botón "Update/Download" conectado a `src.database.load_stock`.
+   [ ] Feedback de estado:
+       - Barra de progreso o logs en pantalla para indicar "Descargando...".
+       - Manejo de errores visual (ej: "Ticker no encontrado").
+
+3. Visualización OHLC (Candlestick Charts)
+   [ ] Integración de librería gráfica (matplotlib / mplfinance).
+   [ ] Widget de Gráfico:
+       - Usar datos de StockFrame (Open, High, Low, Close).
+       - Renderizar gráfico de velas (Candlesticks) por defecto.
+   [ ] Herramientas de navegación básica (Zoom, Pan).
+
+--------------------------------------------------------------------------------
+FASE 2: EL CONSTRUCTOR DE ESTRATEGIAS (Builder)
+--------------------------------------------------------------------------------
+Objetivo: Interfaz "No-Code" para crear y guardar configuraciones de estrategias.
+
+4. Persistencia de Configuraciones
+   [ ] Diseñar tabla `strategies_config` en SQLite.
+       - Columnas: id, nombre, tipo_estrategia, parametros (JSON), ticker, fecha_creacion.
+
+5. Formulario Dinámico de Estrategias
+   [ ] Selector de Tipo de Estrategia (Dropdown):
+       - Opciones: Bounded, DynamicBuy, MultiBounded, etc.
+   [ ] Renderizado Condicional de Parámetros:
+       - Si es "Bounded": Mostrar inputs para Stop Loss ($) y Take Profit ($).
+       - Si es "Dynamic": Mostrar input para Lookback Period (ej: "1 day").
+   [ ] Validaciones de Input (evitar texto en campos numéricos).
+
+6. Gestión CRUD (Create, Read, Update, Delete)
+   [ ] Botón "Guardar Estrategia" (Serializar formulario -> DB).
+   [ ] Panel "Mis Estrategias": Lista de estrategias guardadas.
+   [ ] Botón "Cargar": Rellenar formulario con datos guardados.
+   [ ] Botón "Borrar": Eliminar estrategia de la DB.
+
+--------------------------------------------------------------------------------
+FASE 3: MOTOR DE EJECUCIÓN (Execution Engine)
+--------------------------------------------------------------------------------
+Objetivo: Ejecutar simulaciones en segundo plano y guardar resultados financieros.
+
+7. Ejecución Asíncrona
+   [ ] Botón "Run Backtest" en la GUI.
+   [ ] Implementación de Threading:
+       - Correr `strategy.execute()` en un hilo separado para no congelar la UI.
+   [ ] Barra de progreso de la simulación.
+
+8. Persistencia de Resultados (Equity Curve)
+   [ ] Modificar lógica de guardado:
+       - Crear tabla `performance_logs` o similar.
+       - Guardar serie temporal diaria: [Fecha, Cash, Valor_Acciones, Total_Equity].
+   [ ] Tratar la performance como un "Ticker" más para poder visualizarla.
+
+--------------------------------------------------------------------------------
+FASE 4: ANALÍTICA Y REPORTES VISUALES
+--------------------------------------------------------------------------------
+Objetivo: Inspección visual de operaciones y rendimiento.
+
+9. Visualización de Operaciones (Markers)
+   [ ] Superposición en el gráfico OHLC (de Fase 1):
+       - Triángulo Verde: Compra (con precio y fecha).
+       - Triángulo Rojo: Venta (con precio y fecha).
+   [ ] Tooltips: Ver detalles al pasar el mouse por el marcador (si es posible)
+       o click para ver info en consola.
+
+10. Visualización de Límites
+    [ ] Dibujar líneas horizontales históricas para Stop Loss y Take Profit
+        activos en el momento de la operación.
+
+11. Gráfico de Performance (Equity)
+    [ ] Sub-gráfico o ventana nueva:
+        - Línea de evolución del Capital Total vs. Buy & Hold del activo.
+    [ ] Resumen estadístico en texto:
+        - ROI Final, Max Drawdown, Ratio de Acierto, Profit Factor.

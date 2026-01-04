@@ -6,14 +6,23 @@ __pycache__/
 *.db
 data/*.db
 
-# Entornos virtuales (si usas alguno)
+# Entornos virtuales
 venv/
 .venv/
 env/
 
-# Archivos del sistema operativo
+# Archivos del sistema operativo e IDEs
 .DS_Store
+Thumbs.db
+.vscode/
+.idea/
 
-# Archivos temporales de testeo y de carga de datos
+# Logs y Archivos generados
+*.log
+*.csv
+*.xlsx
+*.png
+
+# Archivos temporales de testeo
 test.ipynb
 loader.py

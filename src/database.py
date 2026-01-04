@@ -175,3 +175,19 @@ def get_sf_from_sqlite(
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0.0).astype(float)
             
     return StockFrame(df)
+
+def get_existing_tickers(db_path: str = 'data/market_data.db') -> list[str]:
+
+    if not os.path.exists(db_path):
+        return []
+        
+    try:
+        with sqlite3.connect(db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+            tables = cursor.fetchall()
+            ticker_list = [t[0] for t in tables if not t[0].startswith('sqlite_')]
+            return sorted(ticker_list)
+    except Exception as e:
+        print(f"Error fetching tickers: {e}")
+        return []

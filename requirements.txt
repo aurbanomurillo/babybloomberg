@@ -5,3 +5,5 @@ rich
 lxml
 plotly
 python-dateutil
+matplotlib
+mplfinance

@@ -26,7 +26,7 @@ class StockFrame(pd.DataFrame):
 
     def get_price_in(
             self, 
-            fecha: str
+            date: str
             ) -> float | None:
         """Retrieves the closing price for a specific date.
 
@@ -34,16 +34,16 @@ class StockFrame(pd.DataFrame):
         Returns None instead of raising an error if the date is not found.
 
         Args:
-            fecha (str): The target date in "YYYY-MM-DD" format.
+            date (str): The target date in "YYYY-MM-DD" format.
 
         Returns:
             float | None: The closing price if the date exists, otherwise None.
         """
 
         try:
-            return float(self.loc[fecha]['Close'])
+            return float(self.loc[date]['Close'])
         except KeyError:
-            # print(f"Error: La fecha {fecha} no existe en los datos.")
+            # print(f"Error: Date {date} not found in data.").
             return None
     
     def get_last_valid_price(

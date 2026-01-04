@@ -6,12 +6,12 @@ database errors, resource shortages (cash/stock), invalid operation states,
 and flow control signals for strategies.
 """
 
-class ErrorBaseDatos(Exception):
+class DatabaseError(Exception):
     """Base exception for SQLite database-related errors."""
 
     pass
 
-class ErrorTickerYaActualizado(ErrorBaseDatos):
+class TickerUpToDateError(DatabaseError):
     """Indicates that an attempt was made to update a ticker that is already up to date."""
 
     pass

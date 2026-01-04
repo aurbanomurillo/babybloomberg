@@ -25,16 +25,16 @@ class BoundedStrategy(Strategy):
     """
     def __init__(
             self,
-            ticker:str,
-            start:str,
-            end:str,
-            capital:float,
-            sf:StockFrame,
+            ticker: str,
+            start: str,
+            end: str,
+            capital: float,
+            sf: StockFrame,
             stop_loss: float,
             take_profit: float,
             max_holding_period: str = None,
-            sizing_type:str = "static",
-            name:str = "undefined_bounded_strategy"
+            sizing_type: str = "static",
+            name: str = "undefined_bounded_strategy"
             ):
         
         """Initializes the bounded strategy and executes the immediate market entry.
@@ -59,19 +59,19 @@ class BoundedStrategy(Strategy):
 
         super().__init__(ticker, start, end, capital, sf, sizing_type=sizing_type, name=name)
 
-        self.stop_loss:float = stop_loss
-        self.take_profit:float = take_profit
-        self.max_holding_period:str = max_holding_period        
+        self.stop_loss: float = stop_loss
+        self.take_profit: float = take_profit
+        self.max_holding_period: str = max_holding_period        
         self.buy_all(self.start, trigger="initial_entry")
-        self.entry_price:float = self.sf.get_price_in(self.start)
+        self.entry_price: float = self.sf.get_price_in(self.start)
         if self.stop_loss >= self.entry_price:
-            print(f"ADVERTENCIA: El Stop Loss ({self.stop_loss}) es mayor que el precio de entrada ({self.entry_price}). Se venderá inmediatamente.")
+            print(f"WARNING: Stop Loss ({self.stop_loss}) is higher than entry price ({self.entry_price}). Selling immediately.")
         if self.take_profit <= self.entry_price:
-             print(f"ADVERTENCIA: El Take Profit ({self.take_profit}) es menor que el precio de entrada ({self.entry_price}). Se venderá inmediatamente.")
+            print(f"WARNING: Take Profit ({self.take_profit}) is lower than entry price ({self.entry_price}). Selling immediately.")
 
     def check_and_do(
             self,
-            fecha:str
+            date:str
             ) -> None:
         """Verifies exit conditions for a specific date.
 
@@ -81,26 +81,26 @@ class BoundedStrategy(Strategy):
         position and stops future execution.
 
         Args:
-            fecha (str): Current date to verify (YYYY-MM-DD).
+            date (str): Current date to verify (YYYY-MM-DD).
 
         Raises:
             StopChecking: Flow control signal indicating the position has been closed
                 and the strategy should stop iterating over new dates.
         """
 
-        current_price = self.sf.get_price_in(fecha)
+        current_price = self.sf.get_price_in(date)
         if not current_price == None:
             if current_price <= self.stop_loss:
-                self.close_trade(fecha, trigger="stop_loss")
+                self.close_trade(date, trigger="stop_loss")
                 raise StopChecking
             elif current_price >= self.take_profit:
-                self.close_trade(fecha, trigger="take_profit")
+                self.close_trade(date, trigger="take_profit")
                 raise StopChecking
 
             elif not self.max_holding_period == None:
-                fecha_hace_periodo = restar_intervalo(fecha, self.max_holding_period)
-                if fecha_hace_periodo >= self.start:
-                    self.close_trade(fecha, trigger="time_stop")
+                cutoff_date = subtract_interval(date, self.max_holding_period)
+                if cutoff_date >= self.start:
+                    self.close_trade(date, trigger="time_stop")
                     raise StopChecking
 
     def execute(self) -> None:
@@ -112,10 +112,10 @@ class BoundedStrategy(Strategy):
         it forces a close.
         """
 
-        for fecha in track(self.sf.index, description=f"Executing {self.name}..."):
-            if self.start <= fecha <= self.end:
+        for date in track(self.sf.index, description=f"Executing {self.name}..."):
+            if self.start <= date <= self.end:
                 try:
-                    self.check_and_do(fecha)
+                    self.check_and_do(date)
                 except NotEnoughStockError:
                     break
                 except StopChecking:

@@ -36,22 +36,22 @@ class MultiStrategy(Strategy):
             strats (list[Strategy]): A list of initialized strategy objects to be executed.
         """
 
-        self.active_strategies:list[Strategy] = strats
-        self.finished_strategies:list[Strategy] = []
+        self.active_strategies: list[Strategy] = strats
+        self.finished_strategies: list[Strategy] = []
         
-        self.start:str = min(s.start for s in self.active_strategies)
-        self.end:str = max(s.end for s in self.active_strategies)
+        self.start: str = min(s.start for s in self.active_strategies)
+        self.end: str = max(s.end for s in self.active_strategies)
         
-        self.fiat:float = 0.0 
-        self.initial_capital:float = sum(s.initial_capital for s in self.active_strategies)
+        self.fiat: float = 0.0 
+        self.initial_capital: float = sum(s.initial_capital for s in self.active_strategies)
         
-        self.profits:float = 0.0
-        self.closed:bool = False
-        self.name:str = "undefined_multi_strategy"
+        self.profits: float = 0.0
+        self.closed: bool = False
+        self.name: str = "undefined_multi_strategy"
 
     def check_and_do(
             self, 
-            fecha:str
+            date: str
             ) -> None:
         """Delegates the daily check to each active sub-strategy.
 
@@ -61,16 +61,16 @@ class MultiStrategy(Strategy):
         is added to the global fiat pool.
 
         Args:
-            fecha (str): Current date to evaluate.
+            date (str): Current date to evaluate.
         """
 
         for strat in self.active_strategies[:]:
             try:
-                strat.check_and_do(fecha)
+                strat.check_and_do(date)
             except (StopChecking, NotEnoughStockError, NotEnoughCashError):
                 if not strat.closed:
                     try:
-                        strat.close_trade(fecha, trigger="sub_strategy_finish")
+                        strat.close_trade(date, trigger="sub_strategy_finish")
                     except:
                         pass
         
@@ -86,17 +86,17 @@ class MultiStrategy(Strategy):
         and iterates day-by-day calling `check_and_do`.
         """
 
-        rango_fechas = get_date_range(self.start, self.end)
+        date_range = get_date_range(self.start, self.end)
 
-        for fecha in track(rango_fechas, description=f"Executing {self.name}..."):
-            self.check_and_do(fecha)
+        for date in track(date_range, description=f"Executing {self.name}..."):
+            self.check_and_do(date)
 
         self.close_trade(self.end)
             
     def close_trade(
             self,
-            fecha:str,
-            trigger:str="force_close_global"
+            date: str,
+            trigger: str = "force_close_global"
             ) -> None:
         """Forces the closure of all remaining active sub-strategies.
 
@@ -105,13 +105,13 @@ class MultiStrategy(Strategy):
         the total profit.
 
         Args:
-            fecha (str): Date of closure.
+            date (str): Date of closure.
             trigger (str, optional): Reason for closure. Defaults to "force_close_global".
         """
 
         for strat in self.active_strategies:
             if not strat.closed:
-                strat.close_trade(fecha, trigger=trigger)
+                strat.close_trade(date, trigger=trigger)
                 self.fiat += strat.fiat
                 self.finished_strategies.append(strat)
         
@@ -133,13 +133,13 @@ class MultiStrategy(Strategy):
         for strat in all_strats:
             all_operations.extend(strat.operations)
         
-        all_operations.sort(key=lambda x: x.fecha)
+        all_operations.sort(key=lambda x: x.date)
         return [op.get_description() for op in all_operations]
 
     def print_operations(self) -> None:
         """Prints a consolidated log of all operations across the sub-strategies."""
 
-        print(f"--- Detalle de Operaciones {self.name} ({len(self.finished_strategies) + len(self.active_strategies)} sub-estrategias) ---")
+        print(f"--- Operations Detail for {self.name} ({len(self.finished_strategies) + len(self.active_strategies)} sub-strategies) ---")
         for description in self.get_all_operations():
             print(description)
 

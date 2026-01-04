@@ -13,7 +13,7 @@ from datetime import datetime, timedelta
 from io import StringIO
 
 
-def obtener_tickers_sp500() -> list[str]:
+def get_sp500_tickers() -> list[str]:
     """Retrieves the updated list of S&P 500 tickers from Wikipedia.
 
     Performs an HTTP request to the S&P 500 Wikipedia page, extracts the components
@@ -32,24 +32,24 @@ def obtener_tickers_sp500() -> list[str]:
     }
 
     try:
-        respuesta = requests.get(url, headers = headers)
-        respuesta.raise_for_status()
+        response = requests.get(url, headers = headers)
+        response.raise_for_status()
 
-        tablas = pd.read_html(StringIO(respuesta.text))
-        df = tablas[0]
+        tables = pd.read_html(StringIO(response.text))
+        df = tables[0]
 
         tickers = []
         for t in df['Symbol'].tolist():
             tickers = tickers.append(t.replace('.', '-'))
 
-        print(f"Éxito: {len(tickers)} tickers obtenidos.")
+        print(f"Success: {len(tickers)} tickers retrieved.")
         return sorted(tickers)
 
     except Exception as e:
-        print(f"Error técnico al obtener tickers: {e}")
+        print(f"Technical error retrieving tickers: {e}")
         return []
 
-def descargar_datos_nuevos(
+def download_new_data(
         ticker: str,
         start_date: str | None = None,
         end_date: str | None = None

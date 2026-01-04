@@ -13,24 +13,24 @@ class Operation:
     successful or failed due to lack of resources.
 
     Attributes:
-        type (str): Type of operation (e.g., "buy", "sell", "compra", "venta").
+        type (str): Type of operation (e.g., "buy", "sell").
         cash_amount (float): Total value of the operation in cash.
         ticker (str): Asset symbol.
         stock_price (float): Price per share at the moment of execution.
-        succesful (bool): True if the trade was executed, False if rejected (e.g., insufficient funds).
-        fecha (str): Date of execution (YYYY-MM-DD).
+        successful (bool): True if the trade was executed, False if rejected (e.g., insufficient funds).
+        date (str): Date of execution (YYYY-MM-DD).
         trigger (str): The reason or event that triggered this operation (e.g., "stop_loss", "manual").
     """
 
     def __init__(
             self,
-            type:str,
-            cash_amount:float,
-            ticker:str,
-            stock_price:int,
-            succesful:bool,
-            fecha:str,
-            trigger:str = "Manual"
+            type: str,
+            cash_amount: float,
+            ticker: str,
+            stock_price: int,
+            successful: bool,
+            date: str,
+            trigger: str = "manual"
             ):
         """Initializes a new operation record.
 
@@ -39,18 +39,18 @@ class Operation:
             cash_amount (float): Total monetary value involved.
             ticker (str): Asset symbol.
             stock_price (int | float): Share price at execution.
-            succesful (bool): Execution status.
-            fecha (str): Date string.
-            trigger (str, optional): Cause of the trade. Defaults to "Manual".
+            successful (bool): Execution status.
+            date (str): Date string.
+            trigger (str, optional): Cause of the trade. Defaults to "manual".
         """
 
-        self.type:str = type
-        self.cash_amount:float = float(cash_amount)
-        self.ticker:str = ticker
-        self.stock_price:int = stock_price
-        self.succesful:bool = succesful
-        self.fecha:str = fecha
-        self.trigger:str = trigger
+        self.type: str = type
+        self.cash_amount: float = float(cash_amount)
+        self.ticker: str = ticker
+        self.stock_price: int = stock_price
+        self.successful: bool = successful
+        self.date: str = date
+        self.trigger: str = trigger
         
     def get_description(self) -> str:
         """Generates a human-readable summary of the operation.
@@ -60,7 +60,7 @@ class Operation:
                 reason, value, asset, price, and date.
         """
         
-        if self.succesful:  
-            return f"Succesful {self.type} ({self.trigger}) operation of {self.cash_amount}$ worth of {self.ticker} at {self.stock_price}$ in {self.fecha}"
+        if self.successful:  
+            return f"Successful {self.type} ({self.trigger}) operation of {self.cash_amount}$ worth of {self.ticker} at {self.stock_price}$ in {self.date}"
         else:
-            return f"Unsuccesful {self.type} ({self.trigger}) operation of {self.cash_amount}$ worth of {self.ticker} at {self.stock_price}$ in {self.fecha}"
+            return f"Unsuccessful {self.type} ({self.trigger}) operation of {self.cash_amount}$ worth of {self.ticker} at {self.stock_price}$ in {self.date}"

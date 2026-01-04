@@ -24,15 +24,15 @@ class SellStrategy(Strategy):
 
     def __init__(
             self,
-            ticker:str,
-            start:str,
-            end:str,
-            capital:float,
-            sf:StockFrame,
-            amount_per_trade:float,
-            threshold:tuple[float, float] | float,
-            sizing_type:str = "static",
-            name:str = "undefined_static_sell_strategy"
+            ticker: str,
+            start: str,
+            end: str,
+            capital: float,
+            sf: StockFrame,
+            amount_per_trade: float,
+            threshold: tuple[float, float] | float,
+            sizing_type: str = "static",
+            name: str = "undefined_static_sell_strategy"
             ):
         """Initializes the sell strategy and executes an initial 'buy all'.
 
@@ -51,14 +51,14 @@ class SellStrategy(Strategy):
         """
 
         super().__init__(ticker, start, end, capital, sf, sizing_type=sizing_type, name=name)
-        self.threshold:str = threshold
-        self.amount_per_trade:float = amount_per_trade
+        self.threshold: str = threshold
+        self.amount_per_trade: float = amount_per_trade
         self.buy_all(self.start, trigger="initial_restock")
 
 
     def check_and_do(
             self,
-            fecha:str
+            date: str
             ) -> None:
         """Evaluates if the current price meets the static sell threshold.
 
@@ -66,20 +66,20 @@ class SellStrategy(Strategy):
         If so, executes a sell order.
 
         Args:
-            fecha (str): Current date.
+            date (str): Current date.
 
         Raises:
             StopChecking: If the simulation end date is reached.
         """
 
-        precio_actual = self.sf.get_price_in(fecha)
+        current_price = self.sf.get_price_in(date)
         if type(self.threshold) == tuple:
-            if self.start <= fecha < self.end and not precio_actual == None and self.threshold[0] <= precio_actual <= self.threshold[1]:
-                self.sell(self.amount_per_trade, fecha, trigger="automatic_check")
+            if self.start <= date < self.end and not current_price == None and self.threshold[0] <= current_price <= self.threshold[1]:
+                self.sell(self.amount_per_trade, date, trigger="automatic_check")
         elif type(self.threshold) == float:
-            if self.start <= fecha < self.end and not precio_actual == None and precio_actual == self.threshold:
-                self.sell(self.amount_per_trade, fecha, trigger="automatic_check")
-        if fecha >= self.end:
+            if self.start <= date < self.end and not current_price == None and current_price == self.threshold:
+                self.sell(self.amount_per_trade, date, trigger="automatic_check")
+        if date >= self.end:
             raise StopChecking
 
     def execute(self) -> None:
@@ -89,11 +89,11 @@ class SellStrategy(Strategy):
         the trade and stops. Forces closure at the end of the period.
         """
 
-        for fecha in track(self.sf.index, description = f"Executing {self.name}..."):
+        for date in track(self.sf.index, description=f"Executing {self.name}..."):
             try:
-                self.check_and_do(fecha)
+                self.check_and_do(date)
             except NotEnoughStockError:
-                self.close_trade(fecha)
+                self.close_trade(date)
                 break
             except StopChecking:
                 break
@@ -113,16 +113,16 @@ class DynamicSellStrategy(SellStrategy):
 
     def __init__(
             self,
-            ticker:str,
-            start:str,
-            end:str,
-            capital:float,
-            sf:StockFrame,
-            amount_per_trade:float,
-            threshold:tuple[float, float] | float,
-            trigger_lookback:str = "1 day",
-            sizing_type:str = "static",
-            name:str = "undefined_dynamic_sell_strategy"
+            ticker: str,
+            start: str,
+            end: str,
+            capital: float,
+            sf: StockFrame,
+            amount_per_trade: float,
+            threshold: tuple[float, float] | float,
+            trigger_lookback: str = "1 day",
+            sizing_type: str = "static",
+            name: str = "undefined_dynamic_sell_strategy"
             ):
         """Initializes the dynamic sell strategy with validation.
 
@@ -146,10 +146,10 @@ class DynamicSellStrategy(SellStrategy):
 
         if isinstance(threshold, float):
             if threshold <= -1:
-                raise NotValidIntervalError("El threshold no puede ser -100% o menor.")
+                raise NotValidIntervalError("Threshold cannot be -100% or lower.")
         elif isinstance(threshold, tuple):
             if threshold[0] <= -1 or threshold[1] <= -1:
-                raise NotValidIntervalError("Ningún límite del rango puede ser -100% o menor.")
+                raise NotValidIntervalError("No range limit can be -100% or lower.")
             
         super().__init__(
             ticker, start, end, capital, sf, 
@@ -159,11 +159,11 @@ class DynamicSellStrategy(SellStrategy):
             name = name
             )
             
-        self.trigger_lookback = trigger_lookback
+        self.trigger_lookback:str = trigger_lookback
 
     def check_and_do(
             self,
-            fecha:str
+            date: str
             ) -> None:
         """Evaluates price variation relative to the past to trigger a sell.
 
@@ -172,32 +172,32 @@ class DynamicSellStrategy(SellStrategy):
         - Negative threshold: Sells if price fell >= X% (Stop Loss).
 
         Args:
-            fecha (str): Current date.
+            date (str): Current date.
 
         Raises:
             StopChecking: If end date is reached.
         """
 
-        precio_actual = self.sf.get_price_in(fecha)
-        precio_a_comparar = self.sf.get_last_valid_price(restar_intervalo(fecha,self.trigger_lookback))
+        current_price = self.sf.get_price_in(date)
+        reference_price = self.sf.get_last_valid_price(subtract_interval(date,self.trigger_lookback))
 
-        if (self.start <= fecha < self.end and
-                not precio_actual == None and
-                not precio_a_comparar == None
+        if (self.start <= date < self.end and
+                not current_price == None and
+                not reference_price == None
                 ):
             if isinstance(self.threshold,float):
                 if self.threshold > 0:
-                    if precio_actual >= (1 + self.threshold) * precio_a_comparar:
-                        self.sell(self.amount_per_trade, fecha, trigger="dynamic_check")
+                    if current_price >= (1 + self.threshold) * reference_price:
+                        self.sell(self.amount_per_trade, date, trigger="dynamic_check")
                         
                 elif self.threshold < 0:
-                    if precio_actual <= (1 + self.threshold) * precio_a_comparar:
-                        self.sell(self.amount_per_trade, fecha, trigger="dynamic_check")
+                    if current_price <= (1 + self.threshold) * reference_price:
+                        self.sell(self.amount_per_trade, date, trigger="dynamic_check")
             elif isinstance(self.threshold,tuple):
-                rango_precios = sorted([(1+self.threshold[0])*precio_a_comparar,(1+self.threshold[1])*precio_a_comparar])
-                if rango_precios[0] <= precio_actual <= rango_precios[1]:
-                    self.sell(self.amount_per_trade, fecha, trigger="dynamic_check")
+                price_range = sorted([(1+self.threshold[0])*reference_price,(1+self.threshold[1])*reference_price])
+                if price_range[0] <= current_price <= price_range[1]:
+                    self.sell(self.amount_per_trade, date, trigger="dynamic_check")
 
-        if fecha >= self.end:
+        if date >= self.end:
             raise StopChecking
         

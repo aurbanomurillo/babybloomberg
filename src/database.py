@@ -15,43 +15,25 @@ from src.processing import *
 from src.exceptions import *
 from src.stockframe_manager import *
 
-def guardar_en_db(
-        nombre_tabla: str,
+def save_to_db(
+        table_name: str,
         df: pd.DataFrame,
-        db_name: str = 'data/bolsa.db'
+        db_name: str = 'data/market_data.db'
         ) -> None:
     """Persists a DataFrame into a specific table in the SQLite database.
 
-    Creates the table if it does not exist, defining columns dynamically based on the DataFrame.
-    Data is inserted in bulk to optimize performance.
+    Uses pandas 'to_sql' for optimized bulk insertion.
+    If the table exists, new data is appended; otherwise, the table is created.
 
     Args:
-        nombre_tabla (str): Table name (usually the asset ticker).
-        df (pd.DataFrame): Data to save. The index will be reset to save it as a column.
-        db_name (str, optional): Path to the .db file. Defaults to 'data/bolsa.db'.
+        table_name (str): Table name (usually the asset ticker).
+        df (pd.DataFrame): Data to save. The index (Date) will be saved as a column.
+        db_name (str, optional): Path to the .db file. Defaults to 'data/market_data.db'.
     """
 
-    with sqlite3.connect(db_name) as conexion:
-        cursor = conexion.cursor()
-
-        df_guardar = df.reset_index()
-
-        columnas = list(df_guardar.columns)
-        definicion = ", ".join(
-            [f"[{col}] TEXT" for col in columnas]
-        )
-
-        cursor.execute(
-            f"CREATE TABLE IF NOT EXISTS [{nombre_tabla}] ({definicion})"
-        )
-
-        placeholders = ", ".join(["?" for _ in range(len(columnas))])
-        cursor.executemany(
-            f"INSERT INTO [{nombre_tabla}] VALUES ({placeholders})",
-            df_guardar.values.tolist()
-        )
-
-        conexion.commit()
+    with sqlite3.connect(db_name) as connection:
+        df.to_sql(table_name, connection, if_exists='append', index=True)
+        connection.commit()
 
 def load_stock(ticker:str) -> None:
     """Updates or downloads the full history of a specific asset.
@@ -64,39 +46,39 @@ def load_stock(ticker:str) -> None:
         ticker (str): Symbol of the asset to update (e.g., "AAPL").
     """
 
-    if not os.path.exists('data/bolsa.db'):
-        print("Archivo de datos inexistente. Se procederá a crear uno.")
+    if not os.path.exists('data/market_data.db'):
+        print("Data file not found. Creating a new one.")
     try:
-        ultima_fecha = get_ultima_fecha(ticker)
-        datos = descargar_datos_nuevos(ticker, ultima_fecha)
+        last_date = get_last_date(ticker)
+        data = download_new_data(ticker, last_date)
 
-        if datos.empty:
-            # print(f"{ticker}: ya actualizado")
+        if data.empty:
+            # print(f"{ticker}: already updated")
             return None
 
-        datos_limpios = redondear_precio(datos)
-        guardar_en_db(ticker, datos_limpios)
+        clean_data = round_price(data)
+        save_to_db(ticker, clean_data)
 
-        # print(f"{ticker}: actualizado desde {datos_limpios['Fecha'].iloc[0]} hasta {datos_limpios['Fecha'].iloc[-1]}")
+        # print(f"{ticker}: updated from {clean_data['Date'].iloc[0]} to {clean_data['Date'].iloc[-1]}")
     except Exception as e:
-        print(f"Falló {ticker}: {e}")
+        print(f"{ticker} failed: {e}")
 
-def load_stocks(lista_tickers: list[str]) -> None:
+def load_stocks(ticker_list: list[str]) -> None:
     """Executes bulk loading and updating for a list of assets.
 
     Iterates over the provided list invoking `load_stock` for each element.
     Displays a visual progress bar in the console.
 
     Args:
-        lista_tickers (list[str]): List of symbols to process.
+        ticker_list (list[str]): List of symbols to process.
     """
 
-    for ticker in track(lista_tickers, description = "Almacenando datos..."):
+    for ticker in track(ticker_list, description="Saving data..."):
         load_stock(ticker)
     
-def get_primera_fecha(
+def get_first_date(
         ticker: str | StockFrame,
-        ruta_db: str = 'data/bolsa.db'
+        db_path: str = 'data/market_data.db'
         ) -> str | None:
     """Retrieves the earliest available date for an asset.
 
@@ -105,14 +87,14 @@ def get_primera_fecha(
 
     Args:
         ticker (str | StockFrame): Asset symbol or data object.
-        ruta_db (str, optional): Path to the database (only if ticker is str).
+        db_path (str, optional): Path to the database (only if ticker is str).
 
     Returns:
         str | None: Date in "YYYY-MM-DD" format or None if no data exists or connection fails.
     """
     try:
         if isinstance(ticker, str):
-            df = get_sf_from_sqlite(ticker, ruta_db)
+            df = get_sf_from_sqlite(ticker, db_path)
 
             return df.index[0]
         elif isinstance(ticker, StockFrame):
@@ -121,9 +103,9 @@ def get_primera_fecha(
     except (pd.errors.DatabaseError, sqlite3.OperationalError) as e:
         return None
 
-def get_ultima_fecha(
+def get_last_date(
         ticker: str | StockFrame,
-        ruta_db: str = 'data/bolsa.db'
+        db_path: str = 'data/market_data.db'
         ) -> str | None:
     """Retrieves the most recent available date for an asset.
 
@@ -132,14 +114,14 @@ def get_ultima_fecha(
 
     Args:
         ticker (str | StockFrame): Asset symbol or data object.
-        ruta_db (str, optional): Path to the database.
+        db_path (str, optional): Path to the database.
 
     Returns:
         str | None: Date in "YYYY-MM-DD" format or None if no data exists or connection fails.
     """
     try:
         if isinstance(ticker, str):
-            df = get_sf_from_sqlite(ticker, ruta_db)
+            df = get_sf_from_sqlite(ticker, db_path)
 
             return df.index[-1]
         elif isinstance(ticker, StockFrame):
@@ -151,7 +133,7 @@ def get_ultima_fecha(
 
 def get_sf_from_sqlite(
         ticker: str,
-        ruta_db: str = 'data/bolsa.db',
+        db_path: str = 'data/market_data.db',
         start: str | None = None,
         end: str | None = None
         ) -> StockFrame:
@@ -163,7 +145,7 @@ def get_sf_from_sqlite(
 
     Args:
         ticker (str): Symbol of the table/asset to read.
-        ruta_db (str, optional): Path to the database.
+        db_path (str, optional): Path to the database.
         start (str | None, optional): Filter start date (inclusive).
         end (str | None, optional): Filter end date (inclusive).
 
@@ -171,16 +153,16 @@ def get_sf_from_sqlite(
         StockFrame: Object with clean historical data indexed by date.
     """
 
-    with sqlite3.connect(ruta_db) as conexion:
+    with sqlite3.connect(db_path) as connection:
         query = f"""
             SELECT * 
             FROM 
             {ticker}"""        
-        df = pd.read_sql_query(query, conexion)
+        df = pd.read_sql_query(query, connection)
     
-    if 'Fecha' in df.columns:
-        df = df.drop_duplicates(subset=['Fecha'], keep='last')
-        df.set_index('Fecha', inplace=True)
+    if 'Date' in df.columns:
+        df = df.drop_duplicates(subset=['Date'], keep='last')
+        df.set_index('Date', inplace=True)
         
         if start:
             df = df[df.index >= start]

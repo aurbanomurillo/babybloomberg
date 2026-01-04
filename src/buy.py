@@ -23,15 +23,15 @@ class BuyStrategy(Strategy):
     """
     def __init__(
             self,
-            ticker:str,
-            start:str,
-            end:str,
-            capital:float,
-            sf:StockFrame,
-            amount_per_trade:float,
-            threshold:tuple[float, float] | float,
-            sizing_type:str = "static",
-            name:str = "undefined_static_buy_strategy"
+            ticker: str,
+            start: str,
+            end: str,
+            capital: float,
+            sf: StockFrame,
+            amount_per_trade: float,
+            threshold: tuple[float, float] | float,
+            sizing_type: str = "static",
+            name: str = "undefined_static_buy_strategy"
             ):
         """Initializes the buy strategy with a fixed price target.
 
@@ -50,12 +50,12 @@ class BuyStrategy(Strategy):
         """
 
         super().__init__(ticker, start, end, capital, sf, sizing_type=sizing_type, name=name)
-        self.threshold = threshold
-        self.amount_per_trade = amount_per_trade
+        self.threshold: tuple[float, float] | float = threshold
+        self.amount_per_trade: float = amount_per_trade
 
     def check_and_do(
             self,
-            fecha:str
+            date: str
             ) -> None:
         """Evaluates if the current price meets the static threshold condition.
 
@@ -64,20 +64,27 @@ class BuyStrategy(Strategy):
         it executes a buy order.
 
         Args:
-            fecha (str): Current date to evaluate.
+            date (str): Current date to evaluate.
 
         Raises:
             StopChecking: If the current date has passed the strategy's end date.
         """
 
-        precio_actual = self.sf.get_price_in(fecha)
-        if type(self.threshold) == tuple:
-            if self.start <= fecha < self.end and not precio_actual == None and self.threshold[0] <= precio_actual <= self.threshold[1]:
-                self.buy(self.amount_per_trade, fecha, trigger="automatic_check")
-        elif type(self.threshold) == float:
-            if self.start <= fecha < self.end and not precio_actual == None and precio_actual == self.threshold:
-                self.buy(self.amount_per_trade, fecha, trigger="automatic_check")
-        if fecha >= self.end:
+        current_price = self.sf.get_price_in(date)
+        
+        if isinstance(self.threshold, tuple):
+            if (self.start <= date < self.end and 
+                current_price is not None and 
+                self.threshold[0] <= current_price <= self.threshold[1]):
+                self.buy(self.amount_per_trade, date, trigger="automatic_check")
+                
+        elif isinstance(self.threshold, float):
+            if (self.start <= date < self.end and 
+                current_price is not None and 
+                current_price == self.threshold):
+                self.buy(self.amount_per_trade, date, trigger="automatic_check")
+                
+        if date >= self.end:
             raise StopChecking
     
     def execute(self) -> None:
@@ -88,11 +95,11 @@ class BuyStrategy(Strategy):
         and finishes the strategy. Closes any open position upon reaching the end date.
         """
 
-        for fecha in track(self.sf.index, description=f"Executing {self.name}..."):
+        for date in track(self.sf.index, description=f"Executing {self.name}..."):
             try:
-                self.check_and_do(fecha)
+                self.check_and_do(date)
             except NotEnoughCashError:
-                self.buy_all(fecha, trigger="last_automatic_check")
+                self.buy_all(date, trigger="last_automatic_check")
                 break
             except StopChecking:
                 break
@@ -114,16 +121,16 @@ class DynamicBuyStrategy(BuyStrategy):
 
     def __init__(
             self,
-            ticker:str,
-            start:str,
-            end:str,
-            capital:float,
-            sf:StockFrame,
-            amount_per_trade:float,
-            threshold:tuple[float, float] | float,
-            trigger_lookback:str = "1 day",
-            sizing_type:str = "static",
-            name:str = "undefined_dynamic_buy_strategy"
+            ticker: str,
+            start: str,
+            end: str,
+            capital: float,
+            sf: StockFrame,
+            amount_per_trade: float,
+            threshold: tuple[float, float] | float,
+            trigger_lookback: str = "1 day",
+            sizing_type: str = "static",
+            name: str = "undefined_dynamic_buy_strategy"
             ):
         """Initializes the dynamic strategy by validating percentage thresholds.
 
@@ -148,10 +155,10 @@ class DynamicBuyStrategy(BuyStrategy):
 
         if isinstance(threshold, float):
             if threshold <= -1:
-                raise NotValidIntervalError("El threshold no puede ser -100% o menor.")
+                raise NotValidIntervalError("Threshold cannot be -100% or lower.")
         elif isinstance(threshold, tuple):
             if threshold[0] <= -1 or threshold[1] <= -1:
-                raise NotValidIntervalError("Ningún límite del rango puede ser -100% o menor.")
+                raise NotValidIntervalError("No range limit can be -100% or lower.")
         
         super().__init__(
             ticker, start, end, capital, sf, 
@@ -161,11 +168,11 @@ class DynamicBuyStrategy(BuyStrategy):
             name = name
             )
             
-        self.trigger_lookback:str = trigger_lookback
+        self.trigger_lookback: str = trigger_lookback
 
     def check_and_do(
             self,
-            fecha:str
+            date: str
             ) -> None:
         """Evaluates price variation relative to the past (Lookback).
 
@@ -175,32 +182,32 @@ class DynamicBuyStrategy(BuyStrategy):
         - If `threshold` is tuple: Buys if current price falls within the projected range.
 
         Args:
-            fecha (str): Current date to evaluate.
+            date (str): Current date to evaluate.
 
         Raises:
             StopChecking: If the end date is exceeded.
         """
 
-        precio_actual = self.sf.get_price_in(fecha)
-        precio_a_comparar = self.sf.get_last_valid_price(restar_intervalo(fecha,self.trigger_lookback))
+        current_price = self.sf.get_price_in(date)
+        reference_price = self.sf.get_last_valid_price(subtract_interval(date, self.trigger_lookback))
 
-        if (self.start <= fecha < self.end and
-                not precio_actual == None and
-                not precio_a_comparar == None
+        if (self.start <= date < self.end and
+                current_price is not None and
+                reference_price is not None
                 ):
-            if isinstance(self.threshold,float):
+            if isinstance(self.threshold, float):
                 if self.threshold > 0:
-                    if precio_actual >= (1 + self.threshold) * precio_a_comparar:
-                        self.buy(self.amount_per_trade, fecha, trigger="dynamic_check")
+                    if current_price >= (1 + self.threshold) * reference_price:
+                        self.buy(self.amount_per_trade, date, trigger="dynamic_check")
                         
                 elif self.threshold < 0:
-                    if precio_actual <= (1 + self.threshold) * precio_a_comparar:
-                        self.buy(self.amount_per_trade, fecha, trigger="dynamic_check")
-            elif isinstance(self.threshold,tuple):
-                rango_precios = sorted([(1+self.threshold[0])*precio_a_comparar,(1+self.threshold[1])*precio_a_comparar])
-                if rango_precios[0] <= precio_actual <= rango_precios[1]:
-                    self.buy(self.amount_per_trade, fecha, trigger="dynamic_check")
+                    if current_price <= (1 + self.threshold) * reference_price:
+                        self.buy(self.amount_per_trade, date, trigger="dynamic_check")
+            elif isinstance(self.threshold, tuple):
+                price_range = sorted([(1 + self.threshold[0]) * reference_price, (1 + self.threshold[1]) * reference_price])
+                if price_range[0] <= current_price <= price_range[1]:
+                    self.buy(self.amount_per_trade, date, trigger="dynamic_check")
 
-        if fecha >= self.end:
+        if date >= self.end:
             raise StopChecking
         

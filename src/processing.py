@@ -12,40 +12,40 @@ from dateutil.relativedelta import relativedelta
 from src.exceptions import *
 from src.stockframe_manager import *
 
-def redondear_precio(datos: pd.DataFrame) -> pd.DataFrame | StockFrame:
+def round_price(data: pd.DataFrame) -> pd.DataFrame | StockFrame:
     """Rounds financial data columns to two decimal places.
 
-    Standardizes the format of the DataFrame by ensuring the index is named "Fecha"
+    Standardizes the format of the DataFrame by ensuring the index is named "Date"
     and rounding typical price columns (Open, High, Low, Close, Adj Close).
     Handles potential MultiIndex structures returned by some data sources.
 
     Args:
-        datos (pd.DataFrame | StockFrame): Raw data containing price history.
+        data (pd.DataFrame | StockFrame): Raw data containing price history.
 
     Returns:
         pd.DataFrame | StockFrame: The processed DataFrame with rounded float values.
             Returns the original object if it is empty.
     """
 
-    if datos.empty:
-        return datos
+    if data.empty:
+        return data
 
-    if isinstance(datos.columns, pd.MultiIndex):
-        datos.columns = datos.columns.get_level_values(0)
+    if isinstance(data.columns, pd.MultiIndex):
+        data.columns = data.columns.get_level_values(0)
     
-    datos.index.name = "Fecha" 
-    columnas_precio = ['Open', 'High', 'Low', 'Close', 'Adj Close']
+    data.index.name = "Date" 
+    price_columns = ['Open', 'High', 'Low', 'Close', 'Adj Close']
     
-    for col in columnas_precio:
-        if col in datos.columns:
-            datos[col] = datos[col].astype(float).round(2)
+    for col in price_columns:
+        if col in data.columns:
+            data[col] = data[col].astype(float).round(2)
     
-    datos.index = datos.index.astype(str)
-    return datos
+    data.index = data.index.astype(str)
+    return data
 
 def get_price_in(
         df: StockFrame | pd.DataFrame,
-        fecha:str
+        date: str
         ) -> float:
     """Retrieves the closing price for a specific date.
 
@@ -53,13 +53,13 @@ def get_price_in(
 
     Args:
         df (StockFrame | pd.DataFrame): The data source.
-        fecha (str): The date to query (YYYY-MM-DD).
+        date (str): The date to query (YYYY-MM-DD).
 
     Returns:
         float: The closing price on the specified date.
     """
 
-    return float(df.loc[fecha]['Close'])
+    return float(df.loc[date]['Close'])
 
 def get_date_range(
         start_str: str, 
@@ -78,18 +78,18 @@ def get_date_range(
     start = datetime.strptime(start_str, "%Y-%m-%d")
     end = datetime.strptime(end_str, "%Y-%m-%d")
     
-    lista_fechas = []
+    date_list = []
     current = start
     
     while current <= end:
-        lista_fechas.append(current.strftime("%Y-%m-%d"))
+        date_list.append(current.strftime("%Y-%m-%d"))
         current += timedelta(days=1)
         
-    return lista_fechas
+    return date_list
 
-def restar_intervalo(
-        fecha_str:str,
-        intervalo_str:str
+def subtract_interval(
+        date_str: str,
+        interval_str: str
         ) -> str:
     """Subtracts a natural language time interval from a given date.
 
@@ -97,8 +97,8 @@ def restar_intervalo(
     resulting past date.
 
     Args:
-        fecha_str (str): The reference date (YYYY-MM-DD).
-        intervalo_str (str): The interval to subtract (e.g., "5 days", "1 year").
+        date_str (str): The reference date (YYYY-MM-DD).
+        interval_str (str): The interval to subtract (e.g., "5 days", "1 year").
 
     Returns:
         str: The resulting past date in "YYYY-MM-DD" format.
@@ -107,22 +107,22 @@ def restar_intervalo(
         NotValidIntervalError: If the unit (day, week, month, year) is not recognized.
     """
     
-    fecha_dt = datetime.strptime(fecha_str, "%Y-%m-%d")
+    date_dt = datetime.strptime(date_str, "%Y-%m-%d")
     
-    partes = intervalo_str.split()
-    cantidad = int(partes[0])
-    unidad = partes[1].lower()
-    if 'd' in unidad:
-        delta = relativedelta(days=cantidad)
-    elif 'w' in unidad:
-        delta = relativedelta(weeks=cantidad)
-    elif  'm' in unidad:
-        delta = relativedelta(months=cantidad)
-    elif 'y' in unidad:
-        delta = relativedelta(years=cantidad)
+    parts = interval_str.split()
+    amount = int(parts[0])
+    unit = parts[1].lower()
+    if 'd' in unit:
+        delta = relativedelta(days=amount)
+    elif 'w' in unit:
+        delta = relativedelta(weeks=amount)
+    elif  'm' in unit:
+        delta = relativedelta(months=amount)
+    elif 'y' in unit:
+        delta = relativedelta(years=amount)
     else:
-        raise NotValidIntervalError("Unidad no reconocida (usa day, week, month, year)")
+        raise NotValidIntervalError("Unrecognized unit (use day, week, month, year)")
 
-    nueva_fecha = fecha_dt - delta
+    new_date = date_dt - delta
 
-    return nueva_fecha.strftime("%Y-%m-%d")
+    return new_date.strftime("%Y-%m-%d")

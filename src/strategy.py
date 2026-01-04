@@ -38,13 +38,13 @@ class Strategy():
 
     def __init__(
             self,
-            ticker:str,
-            start:str,
-            end:str,
-            capital:float,
-            sf:StockFrame,
-            sizing_type:str = "static",
-            name:str = "undefined_strategy"
+            ticker: str,
+            start: str,
+            end: str,
+            capital: float,
+            sf: StockFrame,
+            sizing_type: str = "static",
+            name: str = "undefined_strategy"
             ):
         """Initializes the strategy state.
 
@@ -63,27 +63,27 @@ class Strategy():
             ValueError: If `sizing_type` is not one of the recognized options.
         """
 
-        self.name:str = name
-        self.ticker:str = ticker
-        self.start:str = start
-        self.end:str = end
-        self.sf:StockFrame = sf
-        self.initial_capital:float = float(capital)
-        self.fiat:float = float(capital)
-        self.stock:float = 0.0
-        self.profits:float | None = None
-        self.operations:list[Operation] = []
-        self.closed:bool = False
+        self.name: str = name
+        self.ticker: str = ticker
+        self.start: str = start
+        self.end: str = end
+        self.sf: StockFrame = sf
+        self.initial_capital: float = float(capital)
+        self.fiat: float = float(capital)
+        self.stock: float = 0.0
+        self.profits: float | None = None
+        self.operations: list[Operation] = []
+        self.closed: bool = False
 
         if sizing_type in ["static", "percentage initial", "percentage current"]:
-            self.sizing_type:str = sizing_type
+            self.sizing_type: str = sizing_type
         else:
             raise ValueError(f"Sizing type '{self.sizing_type}' not recognized.")
         
     def _calculate_order_amount(
             self, 
-            quantity:float, 
-            override_sizing_type:str = None
+            quantity: float, 
+            override_sizing_type: str = None
             ) -> float:
         """Calculates the cash value of an order based on the sizing type.
 
@@ -121,10 +121,10 @@ class Strategy():
 
     def buy(
             self,
-            quantity:float,
-            fecha:str,
-            trigger:str = "manual",
-            sizing_type:str = None
+            quantity: float,
+            date: str,
+            trigger: str = "manual",
+            sizing_type: str = None
             ) -> None:
         """Executes a buy order (Long entry).
 
@@ -135,7 +135,7 @@ class Strategy():
 
         Args:
             quantity (float): Amount or percentage to buy.
-            fecha (str): Date of execution.
+            date (str): Date of execution.
             trigger (str, optional): Reason for the trade. Defaults to "manual".
             sizing_type (str, optional): Override for position sizing.
 
@@ -147,20 +147,20 @@ class Strategy():
         
         if cash_amount >= 0.01:
 
-            stock_price = self.sf.get_price_in(fecha)
+            stock_price = self.sf.get_price_in(date)
             
             if self.fiat - cash_amount >= -0.000001:
                 self.fiat = round(self.fiat - cash_amount, 2)
                 self.stock += float(round(cash_amount/stock_price, 8))
-                self.operations.append(Operation("compra", cash_amount, self.ticker, stock_price, True, fecha, trigger))
+                self.operations.append(Operation("buy", cash_amount, self.ticker, stock_price, True, date, trigger))
             else:
-                self.operations.append(Operation("compra", cash_amount, self.ticker, stock_price, False, fecha, trigger))
+                self.operations.append(Operation("buy", cash_amount, self.ticker, stock_price, False, date, trigger))
                 raise NotEnoughCashError
     
     def buy_all(
             self,
-            fecha:str,
-            trigger:str = "manual"
+            date: str,
+            trigger: str = "manual"
             ) -> None:
         """Invests all available capital into the asset.
 
@@ -168,18 +168,18 @@ class Strategy():
         `fiat` balance as the quantity.
 
         Args:
-            fecha (str): Date of execution.
+            date (str): Date of execution.
             trigger (str, optional): Reason for the trade. Defaults to "manual".
         """
 
-        self.buy(self.fiat, fecha, trigger=trigger, sizing_type="static")
+        self.buy(self.fiat, date, trigger=trigger, sizing_type="static")
 
     def sell(
             self,
-            quantity:float,
-            fecha:str,
-            trigger:str = "manual",
-            sizing_type:str = None
+            quantity: float,
+            date: str,
+            trigger: str = "manual",
+            sizing_type: str = None
             ) -> None:
         """Executes a sell order (Long exit).
 
@@ -190,7 +190,7 @@ class Strategy():
 
         Args:
             quantity (float): Amount or percentage to sell.
-            fecha (str): Date of execution.
+            date (str): Date of execution.
             trigger (str, optional): Reason for the trade. Defaults to "manual".
             sizing_type (str, optional): Override for position sizing.
 
@@ -203,7 +203,7 @@ class Strategy():
         else:
             current_sizing = self.sizing_type
 
-        stock_price = self.sf.get_price_in(fecha)
+        stock_price = self.sf.get_price_in(date)
 
         if current_sizing == "percentage current":
             cash_amount = round(self.stock * stock_price * quantity, 2)
@@ -218,15 +218,15 @@ class Strategy():
 
                 self.fiat = round(float(self.fiat + cash_amount),2)
                 self.stock -= stock_amount
-                self.operations.append(Operation("venta", cash_amount, self.ticker, stock_price, True, fecha, trigger))
+                self.operations.append(Operation("sell", cash_amount, self.ticker, stock_price, True, date, trigger))
             else:
-                self.operations.append(Operation("venta", cash_amount, self.ticker, stock_price, False, fecha, trigger))
+                self.operations.append(Operation("sell", cash_amount, self.ticker, stock_price, False, date, trigger))
                 raise NotEnoughStockError
         
     def sell_all(
             self,
-            fecha:str,
-            trigger:str = "manual"
+            date: str,
+            trigger: str = "manual"
             ) -> None:
         """Liquidates the entire position.
 
@@ -234,17 +234,17 @@ class Strategy():
         a "static" sell for that full amount.
 
         Args:
-            fecha (str): Date of execution.
+            date (str): Date of execution.
             trigger (str, optional): Reason for the trade. Defaults to "manual".
         """
         
-        stock_price = self.sf.get_price_in(fecha)
-        self.sell(self.stock * stock_price, fecha, trigger, sizing_type="static")
+        stock_price = self.sf.get_price_in(date)
+        self.sell(self.stock * stock_price, date, trigger, sizing_type="static")
         
     def close_trade(
             self,
-            fecha:str,
-            trigger:str = "force_close"
+            date: str,
+            trigger: str = "force_close"
             ) -> None:
         """Forces the closure of the trading position.
 
@@ -253,12 +253,12 @@ class Strategy():
         the end of a simulation or when a stop condition is met.
 
         Args:
-            fecha (str): Date of closure.
+            date (str): Date of closure.
             trigger (str, optional): Reason for closure. Defaults to "force_close".
         """
 
         if not self.closed:
-            self.sell_all(fecha, trigger = trigger)
+            self.sell_all(date, trigger = trigger)
             self.profits = round(self.fiat - self.initial_capital, 2)
             self.closed = True
     
@@ -308,28 +308,28 @@ class Strategy():
     def print_operations(self):
         """Prints the description of every operation recorded in the log."""
 
-        print(f"--- Detalle de Operaciones en {self.name} ({len(self.operations)} operaciones) ---")
+        print(f"--- Operations Detail for {self.name} ({len(self.operations)} operations) ---")
         for operation in self.operations:
             print(operation.get_description())
     
 
-    def get_succesful_operations(self) -> list[str]:
+    def get_successful_operations(self) -> list[str]:
         """Returns a list of descriptions for all successfully executed trades."""
 
-        succesful_operations = []
+        successful_operations = []
         for operation in self.operations:
-            if operation.succesful:
-                succesful_operations.append(operation.get_description())
-        return succesful_operations
+            if operation.successful:
+                successful_operations.append(operation.get_description())
+        return successful_operations
             
     def get_failed_operations(self) -> list[str]:
         """Returns a list of descriptions for trades rejected due to insufficient funds/stock."""
 
-        unsuccesful_operations = []
+        unsuccessful_operations = []
         for operation in self.operations:
-            if not operation.succesful:
-                unsuccesful_operations.append(operation.get_description())
-        return unsuccesful_operations
+            if not operation.successful:
+                unsuccessful_operations.append(operation.get_description())
+        return unsuccessful_operations
 
     def get_all_operations(self) -> list[str]:
         """Returns a list of descriptions for all attempted trades (both success and fail)."""
@@ -357,16 +357,14 @@ class Strategy():
         """
 
         from src.multi_strategy import MultiStrategy
-        if isinstance(self, MultiStrategy):
-            if isinstance(strat2, MultiStrategy):
-                return MultiStrategy(self.strats + strat2.strats)
-            else:
-                return MultiStrategy(self.strats + [strat2])
-        else:
-            if isinstance(strat2, MultiStrategy):
-                return MultiStrategy(strat2.strats + [self])
-            else:
-                return MultiStrategy([self, strat2])
+        
+        def get_sub_strats(s):
+            if isinstance(s, MultiStrategy):
+                return s.active_strategies
+            return [s]
+        
+        combined_strats = get_sub_strats(self) + get_sub_strats(strat2)
+        return MultiStrategy(combined_strats)
 
     def set_name(
             self, 

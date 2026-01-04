@@ -1,3 +1,11 @@
+"""
+Main entry point for the BabyBloomberg graphical user interface.
+
+This module defines the primary application class `BabyBloombergApp`, which
+initializes the main window, configures the layout, and manages the top-level
+navigation tabs (Download and Market visualization).
+"""
+
 import tkinter as tk
 from tkinter import ttk
 import os
@@ -5,9 +13,29 @@ from src.gui.tabs.market_tab import MarketTab
 from src.gui.tabs.download_tab import DownloadTab
 
 class BabyBloombergApp(tk.Tk):
+    """
+    The main application window for the BabyBloomberg Terminal.
+
+    Inherits from `tkinter.Tk` and serves as the root container for the application.
+    It manages the lifecycle of the GUI, including window configuration, tab
+    initialization, and the main event loop.
+
+    Attributes:
+        notebook (ttk.Notebook): The tabbed container widget holding the different
+            functional modules (tabs) of the application.
+        download_tab (DownloadTab): The instance of the data download tab.
+        market_tab (MarketTab): The instance of the market visualization tab.
+    """
 
     def __init__(self):
-        
+        """
+        Initializes the main application window and its components.
+
+        Sets the window title, dimensions, and close event protocol. It also
+        instantiates the `ttk.Notebook` widget and calls `_init_tabs` to
+        populate the interface.
+        """
+
         super().__init__()
 
         self.title("BabyBloomberg Terminal")
@@ -22,7 +50,13 @@ class BabyBloombergApp(tk.Tk):
         self._init_tabs()
 
     def _init_tabs(self) -> None:
-        
+        """
+        Initializes and adds the functional tabs to the application notebook.
+
+        Creates instances of `DownloadTab` and `MarketTab` and adds them
+        to the `self.notebook` container with appropriate labels.
+        """
+
         self.download_tab = DownloadTab(self.notebook)
         self.notebook.add(self.download_tab, text="Download Data")
 
@@ -30,10 +64,22 @@ class BabyBloombergApp(tk.Tk):
         self.notebook.add(self.market_tab, text="Visualize Market")
 
     def on_close(self) -> None:
+        """
+        Handles the window closure event.
+
+        Ensures a clean exit by destroying the window widgets and forcing
+        termination of the Python process to stop any background threads.
+        """
 
         self.quit()
         self.destroy()
         os._exit(0)
 
     def run(self) -> None:
+        """
+        Starts the main event loop of the application.
+
+        This method blocks execution until the window is closed by the user.
+        """
+        
         self.mainloop()

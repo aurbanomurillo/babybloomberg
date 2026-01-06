@@ -105,7 +105,60 @@ class BuyStrategy(Strategy):
                 break
 
         self.close_trade(self.end)
+    
+    def execute_and_save(
+            self, 
+            db_route: str
+            ) -> None:
+        """Executes the strategy simulation and persists daily performance metrics.
 
+        Runs the strategy day-by-day over the configured date range. It specifically
+        handles `NotEnoughCashError` by triggering a final `buy_all` operation to
+        invest any remaining capital before stopping the simulation.
+
+        For each day, it triggers the trading logic, calculates the current equity
+        (Cash + Stock Value), and logs the performance. Finally, the performance
+        history is saved to the specified database.
+
+        Args:
+            db_route (str): The file path to the SQLite database where the performance
+                table (named after the strategy) will be saved.
+        """
+        
+        date_range = get_date_range(self.start, self.end)
+        performance_log = []
+
+        for date in track(date_range, description=f"Executing and saving {self.name}..."):
+            try:
+                self.check_and_do(date)
+            except NotEnoughCashError:
+                self.buy_all(date, trigger="last_automatic_check")
+                break
+            except StopChecking:
+                break
+            except Exception as e:
+                print(f"Error in {self.name} ({date}): {e}")
+                break
+
+            total_equity = self.get_current_capital(date)
+            invested_value = total_equity - self.fiat
+            performance_log.append({
+                "Date": date,
+                "Cash": round(self.fiat, 2),
+                "Stock_Value": round(invested_value, 2),
+                "Total_Equity": round(total_equity, 2)
+            })
+
+        self.close_trade(self.end)
+        
+        if len(performance_log) > 0:
+            df_perf = pd.DataFrame(performance_log)
+            df_perf.set_index("Date", inplace=True)
+            try:
+                save_to_db(f"performance_{self.name}", df_perf, db_name=db_route)
+                print(f"Results saved to 'performance_{self.name}'")
+            except Exception as e:
+                print(f"Error saving results: {e}")            
 
 class DynamicBuyStrategy(BuyStrategy):
     """Dynamic buy strategy based on percentage variations (Momentum/Reversion).
@@ -210,4 +263,3 @@ class DynamicBuyStrategy(BuyStrategy):
 
         if date >= self.end:
             raise StopChecking
-        

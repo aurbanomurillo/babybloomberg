@@ -36,9 +36,13 @@ class SellStrategy(Strategy):
             ):
         """Initializes the sell strategy and executes an initial 'buy all'.
 
+        Note: If the provided `start` date lacks data (e.g., it is a holiday), the 
+        strategy automatically advances the start date to the next available trading day
+        to ensure the initial purchase can be executed.
+
         Args:
             ticker (str): Asset symbol.
-            start (str): Start date (YYYY-MM-DD).
+            start (str): Start date (YYYY-MM-DD). May be adjusted forward if invalid.
             end (str): End date (YYYY-MM-DD).
             capital (float): Initial capital.
             sf (StockFrame): Data manager.
@@ -51,6 +55,13 @@ class SellStrategy(Strategy):
         """
 
         super().__init__(ticker, start, end, capital, sf, sizing_type=sizing_type, name=name)
+
+        if not self.start in self.sf.index:
+            valid_dates = self.sf.index[self.sf.index >= self.start]
+            if not valid_dates.empty:
+                new_start = valid_dates[0]
+                self.start = new_start
+
         self.threshold: str = threshold
         self.amount_per_trade: float = amount_per_trade
         self.buy_all(self.start, trigger="initial_restock")
@@ -99,6 +110,60 @@ class SellStrategy(Strategy):
                 break
 
         self.close_trade(self.end)
+
+    def execute_and_save(
+            self, 
+            db_route: str
+            ) -> None:
+        """Executes the strategy simulation and persists daily performance metrics.
+
+        Runs the strategy day-by-day over the configured date range. It specifically
+        handles `NotEnoughStockError` by immediately closing the trade and stopping
+        the simulation, which is critical for sell-focused strategies.
+
+        For each day, it triggers the trading logic, calculates the current equity
+        (Cash + Stock Value), and logs the performance. Finally, the performance
+        history is saved to the specified database.
+
+        Args:
+            db_route (str): The file path to the SQLite database where the performance
+                table (named after the strategy) will be saved.
+        """
+        
+        date_range = get_date_range(self.start, self.end)
+        performance_log = []
+
+        for date in track(date_range, description=f"Executing and saving {self.name}..."):
+            try:
+                self.check_and_do(date)
+            except NotEnoughStockError:
+                self.close_trade(date)
+                break
+            except StopChecking:
+                break
+            except Exception as e:
+                print(f"Error in {self.name} ({date}): {e}")
+                break
+
+            total_equity = self.get_current_capital(date)
+            invested_value = total_equity - self.fiat
+            performance_log.append({
+                "Date": date,
+                "Cash": round(self.fiat, 2),
+                "Stock_Value": round(invested_value, 2),
+                "Total_Equity": round(total_equity, 2)
+            })
+
+        self.close_trade(self.end)
+        
+        if performance_log:
+            df_perf = pd.DataFrame(performance_log)
+            df_perf.set_index("Date", inplace=True)
+            try:
+                save_to_db(f"performance_{self.name}", df_perf, db_name=db_route)
+                print(f"Results saved to 'performance_{self.name}'")
+            except Exception as e:
+                print(f"Error saving results: {e}")
 
 class DynamicSellStrategy(SellStrategy):
     """Dynamic sell strategy based on percentage variations (Trailing Stop/Take Profit).
@@ -200,4 +265,3 @@ class DynamicSellStrategy(SellStrategy):
 
         if date >= self.end:
             raise StopChecking
-        

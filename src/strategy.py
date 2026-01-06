@@ -126,12 +126,15 @@ class Strategy():
             trigger: str = "manual",
             sizing_type: str = None
             ) -> None:
-        """Executes a buy order (Long entry).
+        """Executes a buy order (Long entry), robust to missing price data.
+
+        Attempts to retrieve the asset price for the specific `date`. If data is 
+        unavailable (e.g., market holiday), it automatically falls back to the 
+        last valid historical price.
 
         Calculates the required cash based on the quantity and sizing type.
-        If sufficient funds are available, converts cash to stock at the current
-        price and logs a successful operation. If funds are insufficient, logs
-        a failed operation and raises an error.
+        If sufficient funds are available, converts cash to stock and logs a 
+        successful operation.
 
         Args:
             quantity (float): Amount or percentage to buy.
@@ -143,15 +146,20 @@ class Strategy():
             NotEnoughCashError: If `fiat` is less than the calculated order cost.
         """
 
-        cash_amount = self._calculate_order_amount(quantity, override_sizing_type = sizing_type)
+        stock_price = self.sf.get_price_in(date)
+        if stock_price == None:
+            stock_price = self.sf.get_last_valid_price(date)
+        
+        if stock_price == None:
+            print(f"Error in buy ({self.name}): No price found for {date}.")
+            return
+
+        cash_amount = self._calculate_order_amount(quantity, override_sizing_type=sizing_type)
         
         if cash_amount >= 0.01:
-
-            stock_price = self.sf.get_price_in(date)
-            
             if self.fiat - cash_amount >= -0.000001:
                 self.fiat = round(self.fiat - cash_amount, 2)
-                self.stock += float(round(cash_amount/stock_price, 8))
+                self.stock += float(round(cash_amount / stock_price, 8))
                 self.operations.append(Operation("buy", cash_amount, self.ticker, stock_price, True, date, trigger))
             else:
                 self.operations.append(Operation("buy", cash_amount, self.ticker, stock_price, False, date, trigger))
@@ -181,12 +189,15 @@ class Strategy():
             trigger: str = "manual",
             sizing_type: str = None
             ) -> None:
-        """Executes a sell order (Long exit).
+        """Executes a sell order (Long exit), robust to missing price data.
+
+        Attempts to retrieve the asset price for the specific `date`. If data is 
+        unavailable (e.g., market holiday), it automatically falls back to the 
+        last valid historical price.
 
         Calculates the cash value of the stock to be sold.
-        If sufficient stock is owned, converts stock to cash at the current
-        price and logs a successful operation. If stock is insufficient, logs
-        a failed operation and raises an error.
+        If sufficient stock is owned, converts stock to cash and logs a successful 
+        operation.
 
         Args:
             quantity (float): Amount or percentage to sell.
@@ -204,6 +215,12 @@ class Strategy():
             current_sizing = self.sizing_type
 
         stock_price = self.sf.get_price_in(date)
+        if stock_price == None:
+            stock_price = self.sf.get_last_valid_price(date)
+        
+        if stock_price == None:
+            print(f"Error in sell ({self.name}): No price found for {date}.")
+            return
 
         if current_sizing == "percentage current":
             cash_amount = round(self.stock * stock_price * quantity, 2)
@@ -211,12 +228,10 @@ class Strategy():
             cash_amount = self._calculate_order_amount(quantity, override_sizing_type=sizing_type)
         
         if cash_amount >= 0.01:
-        
-            stock_amount = float(round(cash_amount/stock_price, 8))
+            stock_amount = float(round(cash_amount / stock_price, 8))
             
             if self.stock - stock_amount >= -0.000001:
-
-                self.fiat = round(float(self.fiat + cash_amount),2)
+                self.fiat = round(float(self.fiat + cash_amount), 2)
                 self.stock -= stock_amount
                 self.operations.append(Operation("sell", cash_amount, self.ticker, stock_price, True, date, trigger))
             else:
@@ -228,10 +243,11 @@ class Strategy():
             date: str,
             trigger: str = "manual"
             ) -> None:
-        """Liquidates the entire position.
+        """Liquidates the entire position (Stock -> Cash), robust to missing price data.
 
-        Calculates the total value of the currently held stock and executes
-        a "static" sell for that full amount.
+        Attempts to retrieve the asset price for the specific `date`. If data is 
+        unavailable (e.g., market holiday), it automatically falls back to the 
+        last valid historical price to calculate the total liquidation value.
 
         Args:
             date (str): Date of execution.
@@ -239,8 +255,16 @@ class Strategy():
         """
         
         stock_price = self.sf.get_price_in(date)
-        self.sell(self.stock * stock_price, date, trigger, sizing_type="static")
+        if stock_price == None:
+            stock_price = self.sf.get_last_valid_price(date)
         
+        if stock_price == None:
+            return 
+
+        self.sell(self.stock * stock_price, date, trigger, sizing_type="static")   
+
+
+
     def close_trade(
             self,
             date: str,
@@ -373,5 +397,83 @@ class Strategy():
         """Updates the identifier name of the strategy."""
         
         self.name = name
+    
+    def get_current_capital(
+        self, 
+        date: str
+        ) -> float:
+        """Calculates the total equity (Cash + Stock Value) on a specific date.
 
+        Retrieves the asset price for the given date to determine the market value
+        of held stocks. If price data is unavailable (e.g., holidays), it defaults
+        to returning only the available cash component.
+
+        Args:
+            date (str): Date to evaluate (YYYY-MM-DD).
+
+        Returns:
+            float: Total portfolio value rounded to 2 decimal places.
+        """
         
+        price = self.sf.get_price_in(date)
+        
+        if price == None:
+            return self.fiat
+            
+        stock_value = self.stock * price
+        return round(self.fiat + stock_value, 2)
+
+    def execute_and_save(
+            self,
+            db_route: str
+            ) -> None:
+        """Executes the strategy simulation and persists daily performance metrics.
+
+        Runs the strategy day-by-day over the configured date range. It specifically
+        handles `NotEnoughStockError` by immediately closing the trade and stopping
+        the simulation, which is critical for sell-focused strategies.
+
+        For each day, it triggers the trading logic, calculates the current equity
+        (Cash + Stock Value), and logs the performance. Finally, the performance
+        history is saved to the specified database.
+
+        Args:
+            db_route (str): The file path to the SQLite database where the performance
+                table (named after the strategy) will be saved.
+        """
+
+        date_range = get_date_range(self.start, self.end)
+        performance_log = []
+
+        for date in track(date_range, description=f"Executing and saving {self.name}..."):
+            try:
+                self.check_and_do(date)
+            except NotEnoughStockError:
+                self.close_trade(date)
+                break
+            except StopChecking:
+                break
+            except Exception as e:
+                print(f"Error in {self.name} on {date}: {e}")
+                break
+
+            total_equity = self.get_current_capital(date)
+            invested_value = total_equity - self.fiat
+            performance_log.append({
+                "Date": date,
+                "Cash": round(self.fiat, 2),
+                "Stock_Value": round(invested_value, 2),
+                "Total_Equity": round(total_equity, 2)
+            })
+
+        self.close_trade(self.end)
+        
+        if len(performance_log) > 0:
+            df_perf = pd.DataFrame(performance_log)
+            df_perf.set_index("Date", inplace=True)
+            table_name = str(self.name)
+            try:
+                save_to_db(table_name, df_perf, db_name=db_route)
+                print(f"Results saved to '{table_name}'")
+            except Exception as e:
+                print(f"Error saving results: {e}")

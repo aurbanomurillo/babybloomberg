@@ -26,3 +26,5 @@ Thumbs.db
 # Archivos temporales de testeo
 test.ipynb
 loader.py
+roadmap.txt
+test.py

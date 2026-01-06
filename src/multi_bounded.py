@@ -44,10 +44,13 @@ class MultiBoundedStrategy(Strategy):
             ):
         """Initializes the multi-bounded strategy with static price targets.
 
+        Note: If the provided `start` date lacks data (e.g., it is a holiday), the 
+        strategy automatically advances the start date to the next available trading day.
+
         Args:
             ticker (str): Asset symbol.
-            start (str): Start date.
-            end (str): End date.
+            start (str): Start date (YYYY-MM-DD). May be adjusted forward if invalid.
+            end (str): End date (YYYY-MM-DD).
             capital (float): Total capital available for the manager.
             sf (StockFrame): Data manager.
             target_prices (list[float | tuple[float, float]]): Prices to watch.
@@ -56,12 +59,23 @@ class MultiBoundedStrategy(Strategy):
             amount_per_trade (float): Capital allocated to each spawned child strategy.
             stop_loss_pct (float): Stop Loss percentage for children (e.g., -0.05 for -5%).
             take_profit_pct (float): Take Profit percentage for children (e.g., 0.10 for +10%).
-            max_holding_period (int, optional): Max duration for children. Defaults to None.
+            max_holding_period (str | None, optional): Max duration for children. Defaults to None.
             sizing_type (str, optional): Sizing type. Defaults to "static".
             name (str, optional): Strategy name.
         """
-
+        
         super().__init__(ticker, start, end, capital, sf, sizing_type=sizing_type, name=name)
+        
+        if self.start not in self.sf.index.tolist():
+            valid_dates = self.sf.index[self.sf.index >= self.start]
+            if not valid_dates.empty:
+                new_start = valid_dates[0]
+                self.start = new_start
+                self.initial_ref_price: float = self.sf.get_last_valid_price(self.start)
+            else:
+                self.initial_ref_price: float = None
+        else:
+            self.initial_ref_price: float = self.sf.get_last_valid_price(self.start)
         
         self.target_prices: list[float] = sorted(target_prices, reverse=True)
         self.amount_per_trade: float = amount_per_trade
@@ -73,9 +87,7 @@ class MultiBoundedStrategy(Strategy):
         self.active_strategies: list[BoundedStrategy] = []
         self.finished_strategies: list[BoundedStrategy] = []
         
-        self.triggered_targets: set[float] = set() 
-        
-        self.initial_ref_price: float = self.sf.get_last_valid_price(self.start)
+        self.triggered_targets: set[float] = set()         
 
     def _spawn_child(
             self,
@@ -359,3 +371,26 @@ class MultiDynamicBoundedStrategy(MultiBoundedStrategy):
                     self._spawn_child(date, trigger_reason=f"Dip {round(pct_change*100, 2)}% in {self.trigger_lookback}")
                 else:
                     self._spawn_child(date, trigger_reason=f"Breakout {round(pct_change*100, 2)}% in {self.trigger_lookback}")
+
+    def get_current_capital(
+            self, 
+            date: str
+            ) -> float:
+        """Calculates the total consolidated equity of the manager strategy.
+
+        Aggregates the current value by summing the unallocated cash (fiat) held
+        by the manager and the total current capital (cash + stock) of all
+        currently active child strategies.
+
+        Args:
+            date (str): Date to evaluate (YYYY-MM-DD).
+
+        Returns:
+            float: Total consolidated portfolio value rounded to 2 decimal places.
+        """
+        
+        active_children_capital = 0
+        for strat in self.active_strategies:
+            active_children_capital += strat.get_current_capital(date)
+            
+        return round(self.fiat + active_children_capital, 2)

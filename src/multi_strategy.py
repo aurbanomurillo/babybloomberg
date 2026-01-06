@@ -92,7 +92,59 @@ class MultiStrategy(Strategy):
             self.check_and_do(date)
 
         self.close_trade(self.end)
+
+    def execute_and_save(
+            self,
+            db_route: str = "strategy_data.db"
+            ) -> None:
+        """Executes the multi-strategy simulation and persists daily performance metrics.
+
+        Runs the strategy manager day-by-day over the configured date range. It triggers
+        the daily logic for all active sub-strategies, aggregates their combined 
+        financial state (Cash + Stock Value), and logs the consolidated performance.
+
+        Finally, the performance history is saved to the specified database.
+
+        Args:
+            db_route (str, optional): The file path to the SQLite database where the 
+                performance table (named after the strategy) will be saved. 
+                Defaults to "strategy_data.db".
+        """
+        
+        date_range = get_date_range(self.start, self.end)
+        
+        performance_log = []
+
+        for date in track(date_range, description=f"Executing and saving {self.name}..."):
             
+            self.check_and_do(date)
+            
+            total_equity = self.get_current_capital(date)
+            
+            invested_value = total_equity - self.fiat
+            
+            performance_log.append({
+                "Date": date,
+                "Cash": round(self.fiat, 2),
+                "Stock_Value": round(invested_value, 2),
+                "Total_Equity": round(total_equity, 2)
+            })
+
+        self.close_trade(self.end)
+        
+        if performance_log:
+            df_perf = pd.DataFrame(performance_log)
+            
+            df_perf.set_index("Date", inplace=True)
+            
+            table_name = str(self.name)
+            
+            try:
+                save_to_db(table_name, df_perf, db_name=db_route)
+                print(f"Saved data in '{table_name}' from {db_route}")
+            except Exception as e:
+                print(f"Error saving results: {e}")
+
     def close_trade(
             self,
             date: str,
@@ -175,4 +227,27 @@ class MultiStrategy(Strategy):
             return self.profits
         else:
             raise TradeNotClosed
+        
+    def get_current_capital(
+            self, 
+            date: str
+            ) -> float:
+        """Calculates the total consolidated equity of the multi-strategy.
+
+        Aggregates the current value by summing the unallocated cash (fiat) held
+        by the manager and the total current capital (equity) of all currently 
+        active sub-strategies.
+
+        Args:
+            date (str): Date to evaluate (YYYY-MM-DD).
+
+        Returns:
+            float: Total consolidated portfolio value rounded to 2 decimal places.
+        """
+
+        active_capital = 0
+        for strat in self.active_strategies:
+            active_capital += strat.get_current_capital(date)
+        
+        return round(self.fiat + active_capital, 2)
         

@@ -39,26 +39,37 @@ class BoundedStrategy(Strategy):
         
         """Initializes the bounded strategy and executes the immediate market entry.
 
-        Buys with all available capital at the start date price.
-        Verifies if Stop Loss and Take Profit levels are logical relative to the entry price;
-        prints a warning to the console if they are not.
+        Buys with all available capital at the start date price. 
+        
+        Note: If the provided `start` date lacks data (e.g., it is a holiday), the 
+        strategy automatically advances the start date to the next available trading day.
+
+        Verifies if Stop Loss and Take Profit levels are logical relative to the 
+        actual entry price; prints a warning to the console if they are not.
 
         Args:
             ticker (str): Asset symbol.
-            start (str): Start date (YYYY-MM-DD).
+            start (str): Desired start date (YYYY-MM-DD). May be adjusted forward if invalid.
             end (str): End date (YYYY-MM-DD).
             capital (float): Initial capital.
             sf (StockFrame): Price data manager.
             stop_loss (float): Absolute Stop Loss price.
             take_profit (float): Absolute Take Profit price.
-            max_holding_period (str | None, optional): Maximum holding duration (e.g., "30 days", "2 weeks").
-                Passed to the date processing function. Defaults to None.
+            max_holding_period (str | None, optional): Maximum holding duration (e.g., "30 days").
+                Defaults to None.
             sizing_type (str, optional): Position sizing type. Defaults to "static".
             name (str, optional): Strategy name.
         """
 
         super().__init__(ticker, start, end, capital, sf, sizing_type=sizing_type, name=name)
 
+        if not self.start in self.sf.index.tolist():
+            valid_dates = self.sf.index[self.sf.index >= self.start]
+            
+            if not valid_dates.empty:
+                new_start = valid_dates[0]
+                self.start = new_start
+                
         self.stop_loss: float = stop_loss
         self.take_profit: float = take_profit
         self.max_holding_period: str = max_holding_period        
@@ -122,3 +133,50 @@ class BoundedStrategy(Strategy):
                     break
         if not self.closed:
             self.close_trade(self.end)
+
+    def execute_and_save(
+            self, 
+            db_route: str
+            ) -> None:
+        """Executes the strategy simulation and persists daily performance metrics.
+
+        Runs the strategy day-by-day over the configured date range. For each day,
+        it triggers the trading logic, calculates the current equity (Cash + Stock Value),
+        and logs the performance. Finally, it saves the resulting performance history
+        to the specified database.
+
+        Args:
+            db_route (str): The file path to the SQLite database where the performance
+                table (named after the strategy) will be saved.
+        """
+
+        date_range = get_date_range(self.start, self.end)
+        performance_log = []
+
+        for date in track(date_range, description=f"Executing and saving {self.name}..."):
+            if self.start <= date <= self.end:
+                try:
+                    self.check_and_do(date)
+                except (NotEnoughStockError, StopChecking):
+                    break
+
+                total_equity = self.get_current_capital(date)
+                invested_value = total_equity - self.fiat
+                performance_log.append({
+                    "Date": date,
+                    "Cash": round(self.fiat, 2),
+                    "Stock_Value": round(invested_value, 2),
+                    "Total_Equity": round(total_equity, 2)
+                })
+
+        if not self.closed:
+            self.close_trade(self.end)
+        
+        if len(performance_log) > 0:
+            df_perf = pd.DataFrame(performance_log)
+            df_perf.set_index("Date", inplace=True)
+            try:
+                save_to_db(str(self.name), df_perf, db_name=db_route)
+                print(f"Results saved to 'performance_{self.name}'")
+            except Exception as e:
+                print(f"Error saving results: {e}")

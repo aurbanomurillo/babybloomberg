@@ -40,7 +40,7 @@ def get_sp500_tickers() -> list[str]:
 
         tickers = []
         for t in df['Symbol'].tolist():
-            tickers = tickers.append(t.replace('.', '-'))
+            tickers.append(t.replace('.', '-'))
 
         print(f"Success: {len(tickers)} tickers retrieved.")
         return sorted(tickers)

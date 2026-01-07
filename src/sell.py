@@ -62,7 +62,7 @@ class SellStrategy(Strategy):
                 new_start = valid_dates[0]
                 self.start = new_start
 
-        self.threshold: str = threshold
+        self.threshold: tuple[float, float] | float = threshold
         self.amount_per_trade: float = amount_per_trade
         self.buy_all(self.start, trigger="initial_restock")
 

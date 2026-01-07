@@ -74,13 +74,13 @@ class BuyStrategy(Strategy):
         
         if isinstance(self.threshold, tuple):
             if (self.start <= date < self.end and 
-                current_price is not None and 
+                not current_price == None and 
                 self.threshold[0] <= current_price <= self.threshold[1]):
                 self.buy(self.amount_per_trade, date, trigger="automatic_check")
                 
         elif isinstance(self.threshold, float):
             if (self.start <= date < self.end and 
-                current_price is not None and 
+                not current_price == None and 
                 current_price == self.threshold):
                 self.buy(self.amount_per_trade, date, trigger="automatic_check")
                 
@@ -245,8 +245,8 @@ class DynamicBuyStrategy(BuyStrategy):
         reference_price = self.sf.get_last_valid_price(subtract_interval(date, self.trigger_lookback))
 
         if (self.start <= date < self.end and
-                current_price is not None and
-                reference_price is not None
+                not current_price == None and
+                not reference_price == None
                 ):
             if isinstance(self.threshold, float):
                 if self.threshold > 0:

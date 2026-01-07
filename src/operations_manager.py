@@ -27,7 +27,7 @@ class Operation:
             type: str,
             cash_amount: float,
             ticker: str,
-            stock_price: int,
+            stock_price: float,
             successful: bool,
             date: str,
             trigger: str = "manual"

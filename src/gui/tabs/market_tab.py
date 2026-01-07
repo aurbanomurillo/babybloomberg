@@ -63,7 +63,7 @@ class MarketTab(ttk.Frame):
         self.btn_refresh: ttk.Button = ttk.Button(self.control_frame, text="↻", width=3, command=self.refresh_ticker_list)
         self.btn_refresh.pack(side="left", padx=(0, 15))
         
-        self.var_candles: tk.BooleanVar = tk.BooleanVar(value=True) # Marcado por defecto
+        self.var_candles: tk.BooleanVar = tk.BooleanVar(value=True)
         self.chk_candles: ttk.Checkbutton = ttk.Checkbutton(self.control_frame, text="Candlesticks", variable=self.var_candles)
         self.chk_candles.pack(side="left", padx=(0, 10))
 

@@ -55,8 +55,8 @@ class Strategy():
             capital (float): Initial capital.
             sf (StockFrame): Price data manager.
             sizing_type (str, optional): Default position sizing method.
-                Options: "static" (fixed amount), "percentage initial" (% of starting cap),
-                "percentage current" (% of current cap). Defaults to "static".
+                Options: "static" (fixed amount), "initial" (% of starting cap),
+                "current" (% of current cap). Defaults to "static".
             name (str, optional): Strategy name. Defaults to "undefined_strategy".
 
         Raises:
@@ -75,7 +75,7 @@ class Strategy():
         self.operations: list[Operation] = []
         self.closed: bool = False
 
-        if sizing_type in ["static", "percentage initial", "percentage current"]:
+        if sizing_type in ["static", "initial", "current"]:
             self.sizing_type: str = sizing_type
         else:
             raise ValueError(f"Sizing type '{self.sizing_type}' not recognized.")
@@ -110,10 +110,10 @@ class Strategy():
         if current_sizing == "static":
             return quantity
         
-        elif current_sizing == "percentage initial":
+        elif current_sizing == "initial":
             return self.initial_capital * quantity
             
-        elif current_sizing == "percentage current":
+        elif current_sizing == "current":
             return self.fiat * quantity
             
         else:
@@ -222,7 +222,7 @@ class Strategy():
             print(f"Error in sell ({self.name}): No price found for {date}.")
             return
 
-        if current_sizing == "percentage current":
+        if current_sizing == "current":
             cash_amount = round(self.stock * stock_price * quantity, 2)
         else:
             cash_amount = self._calculate_order_amount(quantity, override_sizing_type=sizing_type)

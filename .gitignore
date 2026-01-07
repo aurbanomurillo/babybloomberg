@@ -2,28 +2,28 @@
 __pycache__/
 *.pyc
 
-# Base de datos
+# Database
 *.db
 data/*.db
 
-# Entornos virtuales
+# Virtual Environments
 venv/
 .venv/
 env/
 
-# Archivos del sistema operativo e IDEs
+# OS and IDE files
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
 
-# Logs y Archivos generados
+# Logs and Generated Files
 *.log
 *.csv
 *.xlsx
 *.png
 
-# Archivos temporales de testeo
+# Temporary Test Files
 test.ipynb
 loader.py
 roadmap.txt

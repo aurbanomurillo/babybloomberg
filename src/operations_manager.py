@@ -16,7 +16,7 @@ class Operation:
         type (str): Type of operation (e.g., "buy", "sell").
         cash_amount (float): Total value of the operation in cash.
         ticker (str): Asset symbol.
-        stock_price (float): Price per share at the moment of execution.
+        stock_price (int): Price per share at the moment of execution.
         successful (bool): True if the trade was executed, False if rejected (e.g., insufficient funds).
         date (str): Date of execution (YYYY-MM-DD).
         trigger (str): The reason or event that triggered this operation (e.g., "stop_loss", "manual").
@@ -35,13 +35,14 @@ class Operation:
         """Initializes a new operation record.
 
         Args:
-            type (str): Operation type ("buy"/"sell").
-            cash_amount (float): Total monetary value involved.
-            ticker (str): Asset symbol.
-            stock_price (int | float): Share price at execution.
-            successful (bool): Execution status.
-            date (str): Date string.
-            trigger (str, optional): Cause of the trade. Defaults to "manual".
+            type (str): The type of operation (e.g., "buy" or "sell").
+            cash_amount (float): The total monetary value involved in the transaction.
+            ticker (str): The asset symbol (e.g., "AAPL").
+            stock_price (float): The price per share at the moment of execution.
+            successful (bool): The execution status; True if successful, False otherwise.
+            date (str): The date of the operation in "YYYY-MM-DD" format.
+            trigger (str, optional): The cause or signal that triggered the trade
+                (e.g., "stop_loss", "manual"). Defaults to "manual".
         """
 
         self.type: str = type

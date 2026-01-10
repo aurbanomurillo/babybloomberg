@@ -1,5 +1,4 @@
-"""
-Data management interface for downloading financial data.
+"""Data management interface for downloading financial data.
 
 This module defines the `DownloadTab` class, which provides a GUI for users
 to input ticker symbols and trigger the bulk download or update process
@@ -12,8 +11,7 @@ import threading
 from src.database import load_stock
 
 class DownloadTab(ttk.Frame):
-    """
-    A GUI tab for bulk downloading and updating stock market data.
+    """A GUI tab for bulk downloading and updating stock market data.
 
     Provides a text input area for entering ticker symbols and a button to
     initiate the download process. Handles the execution in a separate thread
@@ -28,14 +26,13 @@ class DownloadTab(ttk.Frame):
 
     def __init__(
             self, 
-            parent
-            ):
-        """
-        Initializes the download tab UI components.
+            parent: tk.Widget
+            ) -> None:
+        """Initializes the download tab UI components.
 
         Args:
-            parent: The parent widget (typically a `ttk.Notebook`) to which this
-                frame belongs.
+            parent (tk.Widget): The parent widget (typically a `ttk.Notebook`) to
+                which this frame belongs.
         """
         
         super().__init__(parent)
@@ -59,8 +56,7 @@ class DownloadTab(ttk.Frame):
         self.progress: ttk.Progressbar = ttk.Progressbar(self, orient="horizontal", length=400, mode="determinate")
 
     def on_download_click(self) -> None:
-        """
-        Handles the click event for the 'Download / Update All' button.
+        """Handles the click event for the 'Download / Update All' button.
 
         Retrieves the text from the input widget, parses it into a list of tickers,
         validates the input, and starts the `_bulk_download` method in a separate
@@ -84,10 +80,9 @@ class DownloadTab(ttk.Frame):
 
     def _bulk_download(
             self,
-            tickers
+            tickers: list[str]
             ) -> None:
-        """
-        Executes the bulk download process for the specified tickers.
+        """Executes the bulk download process for the specified tickers.
 
         Intended to run in a separate thread. Iterates through the list of tickers,
         calls `src.database.load_stock` for each, and updates the UI progress bar.
@@ -114,9 +109,12 @@ class DownloadTab(ttk.Frame):
         
         self.after(0, self._finish_download, success_count, errors)
 
-    def _finish_download(self, count, errors):
-        """
-        Updates the UI after the download thread completes.
+    def _finish_download(
+            self, 
+            count: int, 
+            errors: list[str]
+            ) -> None:
+        """Updates the UI after the download thread completes.
 
         Re-enables the download button, hides the progress bar, and displays
         a summary message box with the results (success count and any errors).

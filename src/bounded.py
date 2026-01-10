@@ -1,11 +1,11 @@
-"""
-Bounded trading strategy with defined limits (Stop Loss, Take Profit, and Time).
+"""Bounded trading strategy with defined limits (Stop Loss, Take Profit, and Time).
 
 This module implements a strategy that opens a position immediately at the start
-and manages it based on strict exit rules: maximum allowable loss, target profit,
-or maximum operation duration.
+date and manages it based on strict exit rules: maximum allowable loss, target
+profit, or maximum operation duration.
 """
 
+import pandas as pd
 from src.strategy import *
 from src.stockframe_manager import *
 from src.processing import *
@@ -13,92 +13,116 @@ from src.processing import *
 class BoundedStrategy(Strategy):
     """Implements a 'buy and manage' strategy with price and time limits.
 
-    This strategy enters the market with all available capital on the start date
-    and monitors the position daily to close it if a Stop Loss, Take Profit,
-    or maximum holding period is reached.
+    This strategy enters the market with all available capital on the adjusted
+    start date and monitors the position daily. It closes the position if a
+    Stop Loss price is hit, a Take Profit price is hit, or the maximum holding
+    period is exceeded.
 
     Attributes:
-        stop_loss (float): Sell price to cut losses.
-        take_profit (float): Sell price to take profits.
-        max_holding_period (str | None): Maximum time interval to hold the position.
-        entry_price (float): Price at which the initial entry was executed.
+        stop_loss (float): The calculated absolute price level to cut losses.
+        take_profit (float): The calculated absolute price level to take profits.
+        max_holding_period (str): Maximum duration to hold the position
+            (e.g., "30 days").
+        entry_price (float): The price at which the initial entry was executed.
     """
+
     def __init__(
-            self,
-            ticker: str,
-            start: str,
-            end: str,
-            capital: float,
-            sf: StockFrame,
-            stop_loss: float,
-            take_profit: float,
-            max_holding_period: str = None,
-            sizing_type: str = "static",
-            name: str = "undefined_bounded_strategy"
-            ):
-        
-        """Initializes the bounded strategy and executes the immediate market entry.
+        self,
+        ticker: str,
+        start: str,
+        end: str,
+        capital: float,
+        sf: StockFrame,
+        stop_loss: float,
+        take_profit: float,
+        sl_type: str = "$",
+        tp_type: str = "$",
+        max_holding_period: str = None,
+        name: str = "undefined_bounded_strategy"
+        ) -> None:
+        """Initializes the strategy and executes the immediate market entry.
 
-        Buys with all available capital at the start date price. 
-        
-        Note: If the provided `start` date lacks data (e.g., it is a holiday), the 
-        strategy automatically advances the start date to the next available trading day.
+        This method calculates the absolute Stop Loss and Take Profit levels based
+        on the entry price and the specified types (percentage or absolute).
+        It then executes a "Buy All" operation on the start date.
 
-        Verifies if Stop Loss and Take Profit levels are logical relative to the 
-        actual entry price; prints a warning to the console if they are not.
+        Note:
+            If the provided `start` date lacks data (e.g., it is a holiday), the
+            strategy automatically advances the start date to the next available
+            trading day.
 
         Args:
-            ticker (str): Asset symbol.
-            start (str): Desired start date (YYYY-MM-DD). May be adjusted forward if invalid.
-            end (str): End date (YYYY-MM-DD).
-            capital (float): Initial capital.
-            sf (StockFrame): Price data manager.
-            stop_loss (float): Absolute Stop Loss price.
-            take_profit (float): Absolute Take Profit price.
-            max_holding_period (str | None, optional): Maximum holding duration (e.g., "30 days").
-                Defaults to None.
-            sizing_type (str, optional): Position sizing type. Defaults to "static".
-            name (str, optional): Strategy name.
+            ticker (str): The asset symbol (e.g., "AAPL").
+            start (str): The desired start date (YYYY-MM-DD).
+            end (str): The simulation end date (YYYY-MM-DD).
+            capital (float): The initial capital available for the strategy.
+            sf (StockFrame): The data manager containing price history.
+            stop_loss (float): The Stop Loss value. Can be an absolute price
+                difference or a percentage, depending on `sl_type`.
+            take_profit (float): The Take Profit value. Can be an absolute price
+                difference or a percentage, depending on `tp_type`.
+            sl_type (str, optional): The type of Stop Loss calculation.
+                Accepts "$" (absolute amount) or "%" (percentage). Defaults to "$".
+            tp_type (str, optional): The type of Take Profit calculation.
+                Accepts "$" (absolute amount) or "%" (percentage). Defaults to "$".
+            max_holding_period (str, optional): The maximum duration to
+                hold the position (e.g., "30 days"). Defaults to None.
+            name (str, optional): A unique identifier for the strategy.
+                Defaults to "undefined_bounded_strategy".
         """
 
-        super().__init__(ticker, start, end, capital, sf, sizing_type=sizing_type, name=name)
+        super().__init__(ticker, start, end, capital, sf, name=name)
 
         if not self.start in self.sf.index.tolist():
             valid_dates = self.sf.index[self.sf.index >= self.start]
-            
             if not valid_dates.empty:
                 new_start = valid_dates[0]
                 self.start = new_start
-                
-        self.stop_loss: float = stop_loss
-        self.take_profit: float = take_profit
-        self.max_holding_period: str = max_holding_period        
+
         self.buy_all(self.start, trigger="initial_entry")
         self.entry_price: float = self.sf.get_price_in(self.start)
+
+        if self.entry_price == None:
+            self.entry_price = self.sf.get_last_valid_price(self.start)
+
+        if sl_type == "%":
+            self.stop_loss: float = self.entry_price * (1 + stop_loss)
+        else:
+            self.stop_loss: float = self.entry_price + stop_loss
+
+        if tp_type == "%":
+            self.take_profit: float = self.entry_price * (1 + take_profit)
+        else:
+            self.take_profit: float = self.entry_price + take_profit
+
+        self.max_holding_period: str = max_holding_period
+
         if self.stop_loss >= self.entry_price:
-            print(f"WARNING: Stop Loss ({self.stop_loss}) is higher than entry price ({self.entry_price}). Selling immediately.")
+            print(f"WARNING ({self.name}): Stop Loss ({round(self.stop_loss, 2)}) is >= entry price ({self.entry_price}). Position might close immediately.")
         if self.take_profit <= self.entry_price:
-            print(f"WARNING: Take Profit ({self.take_profit}) is lower than entry price ({self.entry_price}). Selling immediately.")
+            print(f"WARNING ({self.name}): Take Profit ({round(self.take_profit, 2)}) is <= entry price ({self.entry_price}). Position might close immediately.")
 
     def check_and_do(
-            self,
-            date:str
+            self, 
+            date: str
             ) -> None:
-        """Verifies exit conditions for a specific date.
+        """Evaluates exit conditions for a specific date.
 
-        Checks if the current price has hit the Stop Loss or Take Profit.
-        Also checks if the maximum holding period has been exceeded by calculating
-        the cutoff date from the start. If any condition is met, it closes the
-        position and stops future execution.
+        Checks against three conditions:
+        1. Stop Loss: Close if current price <= stop_loss.
+        2. Take Profit: Close if current price >= take_profit.
+        3. Time Stop: Close if the position duration exceeds `max_holding_period`.
 
         Args:
-            date (str): Current date to verify (YYYY-MM-DD).
+            date (str): The current simulation date (YYYY-MM-DD).
 
         Raises:
-            StopChecking: Flow control signal indicating the position has been closed
-                and the strategy should stop iterating over new dates.
+            StopChecking: If any exit condition is met, this exception is raised
+                to signal the orchestrator to stop processing further dates for
+                this strategy.
         """
 
+        super().check_and_do(date)
         current_price = self.sf.get_price_in(date)
         if not current_price == None:
             if current_price <= self.stop_loss:
@@ -115,12 +139,12 @@ class BoundedStrategy(Strategy):
                     raise StopChecking
 
     def execute(self) -> None:
-        """Executes the main strategy loop over the date range.
+        """Executes the main strategy loop over the configured date range.
 
-        Iterates day by day verifying exit conditions via `check_and_do`.
-        Manages flow exceptions (`StopChecking`) to stop execution prematurely
-        if the trade is closed. If the position is still open by the end date,
-        it forces a close.
+        Iterates daily, verifying exit conditions via `check_and_do`. It handles
+        flow control exceptions (`StopChecking`) to terminate execution early
+        if the position is closed. If the position remains open at the end of
+        the date range, it forces a closure.
         """
 
         for date in track(self.sf.index, description=f"Executing {self.name}..."):
@@ -138,16 +162,15 @@ class BoundedStrategy(Strategy):
             self, 
             db_route: str
             ) -> None:
-        """Executes the strategy simulation and persists daily performance metrics.
+        """Executes the simulation and persists daily performance metrics.
 
-        Runs the strategy day-by-day over the configured date range. For each day,
-        it triggers the trading logic, calculates the current equity (Cash + Stock Value),
-        and logs the performance. Finally, it saves the resulting performance history
-        to the specified database.
+        Runs the strategy day-by-day. For each step, it triggers trading logic,
+        calculates the current total equity (Cash + Stock Value), and logs the
+        state. The resulting performance history is saved to the specified
+        SQLite database.
 
         Args:
-            db_route (str): The file path to the SQLite database where the performance
-                table (named after the strategy) will be saved.
+            db_route (str): The file path to the SQLite database.
         """
 
         date_range = get_date_range(self.start, self.end)
@@ -171,7 +194,7 @@ class BoundedStrategy(Strategy):
 
         if not self.closed:
             self.close_trade(self.end)
-        
+
         if len(performance_log) > 0:
             df_perf = pd.DataFrame(performance_log)
             df_perf.set_index("Date", inplace=True)

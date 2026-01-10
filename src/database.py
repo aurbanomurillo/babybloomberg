@@ -1,5 +1,4 @@
-"""
-SQLite-based financial data persistence management.
+"""SQLite-based financial data persistence management.
 
 This module handles all input/output operations with the local database.
 It includes functions to save DataFrames, load updated historical data from the API,
@@ -22,28 +21,31 @@ def save_to_db(
         ) -> None:
     """Persists a DataFrame into a specific table in the SQLite database.
 
-    Uses pandas 'to_sql' for optimized bulk insertion.
-    If the table exists, new data is appended; otherwise, the table is created.
+    Uses pandas `to_sql` for optimized bulk insertion. If the table already
+    exists, the new data is appended; otherwise, the table is created.
 
     Args:
-        table_name (str): Table name (usually the asset ticker).
-        df (pd.DataFrame): Data to save. The index (Date) will be saved as a column.
-        db_name (str, optional): Path to the .db file. Defaults to 'data/market_data.db'.
+        table_name (str): The name of the table (typically the asset ticker).
+        df (pd.DataFrame): The data to save. The index (Date) will be included
+            as a column in the database.
+        db_name (str, optional): The file path to the SQLite database.
+            Defaults to 'data/market_data.db'.
     """
 
     with sqlite3.connect(db_name) as connection:
         df.to_sql(table_name, connection, if_exists='append', index=True)
         connection.commit()
 
-def load_stock(ticker:str) -> None:
+def load_stock(ticker: str) -> None:
     """Updates or downloads the full history of a specific asset.
 
-    Checks the last available date in the local database for that ticker.
-    If data exists, it downloads only the differential (delta) since the last date.
-    If not, it downloads the full history. New data is cleaned and saved.
+    Checks the last available date in the local database for the given ticker.
+    If data exists, it downloads only the differential (delta) since that date.
+    If no data exists, it downloads the full history. The new data is cleaned
+    and saved to the database.
 
     Args:
-        ticker (str): Symbol of the asset to update (e.g., "AAPL").
+        ticker (str): The symbol of the asset to update (e.g., "AAPL").
     """
 
     if not os.path.exists('data/market_data.db'):
@@ -66,11 +68,11 @@ def load_stock(ticker:str) -> None:
 def load_stocks(ticker_list: list[str]) -> None:
     """Executes bulk loading and updating for a list of assets.
 
-    Iterates over the provided list invoking `load_stock` for each element.
-    Displays a visual progress bar in the console.
+    Iterates over the provided list, invoking `load_stock` for each element.
+    Displays a visual progress bar in the console using `rich`.
 
     Args:
-        ticker_list (list[str]): List of symbols to process.
+        ticker_list (list[str]): A list of ticker symbols to process.
     """
 
     for ticker in track(ticker_list, description="Saving data..."):
@@ -82,15 +84,17 @@ def get_first_date(
         ) -> str | None:
     """Retrieves the earliest available date for an asset.
 
-    Can query the database directly (if a ticker string is passed)
-    or inspect a StockFrame object already loaded in memory.
+    This function can query the database directly (if a ticker string is passed)
+    or inspect a `StockFrame` object already loaded in memory.
 
     Args:
-        ticker (str | StockFrame): Asset symbol or data object.
-        db_path (str, optional): Path to the database (only if ticker is str).
+        ticker (str | StockFrame): The asset symbol or the data object.
+        db_path (str, optional): The path to the database (used only if
+            `ticker` is a string). Defaults to 'data/market_data.db'.
 
     Returns:
-        str | None: Date in "YYYY-MM-DD" format or None if no data exists or connection fails.
+        str | None: The date in "YYYY-MM-DD" format, or None if no data
+            exists or a connection error occurs.
     """
     try:
         if isinstance(ticker, str):
@@ -109,15 +113,17 @@ def get_last_date(
         ) -> str | None:
     """Retrieves the most recent available date for an asset.
 
-    Useful for determining from which point new data should be downloaded.
-    Works by both querying SQL and inspecting an in-memory StockFrame.
+    Useful for determining the starting point for downloading new data.
+    Works by either querying SQL or inspecting an in-memory `StockFrame`.
 
     Args:
-        ticker (str | StockFrame): Asset symbol or data object.
-        db_path (str, optional): Path to the database.
+        ticker (str | StockFrame): The asset symbol or the data object.
+        db_path (str, optional): The path to the database.
+            Defaults to 'data/market_data.db'.
 
     Returns:
-        str | None: Date in "YYYY-MM-DD" format or None if no data exists or connection fails.
+        str | None: The date in "YYYY-MM-DD" format, or None if no data
+            exists or a connection error occurs.
     """
     try:
         if isinstance(ticker, str):
@@ -139,24 +145,26 @@ def get_sf_from_sqlite(
         ) -> StockFrame:
     """Retrieves asset data from the database and constructs a StockFrame.
 
-    Reads the table corresponding to the ticker, removes duplicates by date, and ensures
-    that numeric columns (Open, High, Low, Close, Adj Close) have the correct type.
-    Allows filtering by date range optionally.
+    Reads the table corresponding to the ticker, removes duplicates based on the
+    date, and ensures that numeric columns (Open, High, Low, Close, Adj Close)
+    are correctly typed. It also supports optional date range filtering.
 
     Args:
-        ticker (str): Symbol of the table/asset to read.
-        db_path (str, optional): Path to the database.
-        start (str | None, optional): Filter start date (inclusive).
-        end (str | None, optional): Filter end date (inclusive).
+        ticker (str): The symbol of the table/asset to read.
+        db_path (str, optional): The path to the database.
+            Defaults to 'data/market_data.db'.
+        start (str | None, optional): The start date for filtering (inclusive).
+            Defaults to None.
+        end (str | None, optional): The end date for filtering (inclusive).
+            Defaults to None.
 
     Returns:
-        StockFrame: Object with clean historical data indexed by date.
+        StockFrame: An object containing the clean historical data, indexed by date.
     """
 
     with sqlite3.connect(db_path) as connection:
         query = f"""
-            SELECT * 
-            FROM 
+            SELECT * FROM 
             {ticker}"""        
         df = pd.read_sql_query(query, connection)
     
@@ -177,6 +185,19 @@ def get_sf_from_sqlite(
     return StockFrame(df)
 
 def get_existing_tickers(db_path: str = 'data/market_data.db') -> list[str]:
+    """Retrieves a list of all ticker symbols currently stored in the database.
+
+    Connects to the SQLite database and queries the master table to identify
+    all user-created tables, excluding internal SQLite tables.
+
+    Args:
+        db_path (str, optional): The file path to the SQLite database.
+            Defaults to 'data/market_data.db'.
+
+    Returns:
+        list[str]: An alphabetically sorted list of ticker symbols. Returns an
+            empty list if the database does not exist or an error occurs.
+    """
 
     if not os.path.exists(db_path):
         return []

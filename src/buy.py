@@ -1,26 +1,29 @@
-"""
-Buy (Long) strategies based on price levels or relative movements.
+"""Buy (Long) strategies based on price levels or relative movements.
 
 This module defines strategies specialized in opening long positions.
-It includes a static variant (`BuyStrategy`) that operates on fixed prices or targets,
-and a dynamic variant (`DynamicBuyStrategy`) that operates on percentage variations
-(dips or breakouts) relative to a previous period.
+It includes a static variant (`BuyStrategy`) that operates on fixed absolute prices
+or target ranges, and a dynamic variant (`DynamicBuyStrategy`) that operates on
+percentage variations (dips or breakouts) relative to a historical timeframe.
 """
 
 from src.strategy import *
 from src.stockframe_manager import *
 
 class BuyStrategy(Strategy):
-    """Static buy strategy based on absolute price levels.
+    """Implements a static buy strategy based on absolute price levels.
 
-    Executes buy orders when the asset price reaches a specific value (target)
-    or enters a determined price range. Manages liquidity by buying the defined
-    amount or the remaining capital if it is insufficient.
+    This strategy executes buy orders when the asset price reaches a specific
+    target value or enters a pre-determined price range. It manages liquidity
+    by attempting to buy the defined amount; if insufficient capital exists,
+    it handles the exception within the execution loop.
 
     Attributes:
-        threshold (float | tuple[float, float]): Target price or buy price range.
-        amount_per_trade (float): Capital to invest in each operation.
+        threshold (float | tuple[float, float]): The target price (if float) or
+            the inclusive price range (min, max) to trigger a buy.
+        amount_per_trade (float): The amount of capital to invest in each
+            operation.
     """
+
     def __init__(
             self,
             ticker: str,
@@ -33,20 +36,23 @@ class BuyStrategy(Strategy):
             sizing_type: str = "static",
             name: str = "undefined_static_buy_strategy"
             ):
-        """Initializes the buy strategy with a fixed price target.
+        """Initializes the static buy strategy with a fixed price target.
 
         Args:
-            ticker (str): Asset symbol.
-            start (str): Start date (YYYY-MM-DD).
-            end (str): End date (YYYY-MM-DD).
-            capital (float): Initial available capital.
-            sf (StockFrame): Price data manager.
-            amount_per_trade (float): Amount of money to invest per buy signal.
-            threshold (float | tuple[float, float]):
-                - If float: Exact price at which the buy will be triggered.
-                - If tuple: Range (min, max) within which the buy will be triggered.
-            sizing_type (str, optional): Sizing method ("static", "percentage", etc.).
-            name (str, optional): Strategy identifier name.
+            ticker (str): The asset symbol (e.g., "AAPL").
+            start (str): The simulation start date (YYYY-MM-DD).
+            end (str): The simulation end date (YYYY-MM-DD).
+            capital (float): The initial capital available for the strategy.
+            sf (StockFrame): The data manager containing price history.
+            amount_per_trade (float): The monetary amount to invest per buy signal.
+            threshold (float | tuple[float, float]): The price trigger.
+                - If float: The exact price at which the buy will be triggered.
+                - If tuple: An inclusive range (min, max) within which the buy
+                  will be triggered.
+            sizing_type (str, optional): The method for position sizing (e.g.,
+                "static", "percentage"). Defaults to "static".
+            name (str, optional): A unique identifier for the strategy.
+                Defaults to "undefined_static_buy_strategy".
         """
 
         super().__init__(ticker, start, end, capital, sf, sizing_type=sizing_type, name=name)
@@ -57,19 +63,23 @@ class BuyStrategy(Strategy):
             self,
             date: str
             ) -> None:
-        """Evaluates if the current price meets the static threshold condition.
+        """Evaluates market conditions against the configured static threshold.
 
-        Compares the closing price of the given date with the configured `threshold`.
-        If the condition is met (strict equality for float or inclusion for tuple),
-        it executes a buy order.
+        Compares the asset's price on the given date with the `threshold`.
+        - If `threshold` is a tuple, checks if the price is within [min, max].
+        - If `threshold` is a float, checks for strict equality with the price.
+
+        If the condition is met, a buy order is executed.
 
         Args:
-            date (str): Current date to evaluate.
+            date (str): The current simulation date (YYYY-MM-DD).
 
         Raises:
-            StopChecking: If the current date has passed the strategy's end date.
+            StopChecking: If the current date has reached or exceeded the
+                strategy's end date, signaling the loop to terminate.
         """
 
+        super().check_and_do(date)
         current_price = self.sf.get_price_in(date)
         
         if isinstance(self.threshold, tuple):
@@ -88,11 +98,12 @@ class BuyStrategy(Strategy):
             raise StopChecking
     
     def execute(self) -> None:
-        """Executes the main strategy loop.
+        """Executes the main strategy simulation loop.
 
-        Iterates over all available dates. If a liquidity shortage is detected
-        (`NotEnoughCashError`), it attempts to invest all remaining capital ("Buy All")
-        and finishes the strategy. Closes any open position upon reaching the end date.
+        Iterates through the date range defined in the StockFrame. It handles
+        liquidity shortages (`NotEnoughCashError`) by attempting a final
+        "Buy All" operation before terminating. It ensures any open position
+        is closed upon reaching the simulation end date.
         """
 
         for date in track(self.sf.index, description=f"Executing {self.name}..."):
@@ -110,19 +121,16 @@ class BuyStrategy(Strategy):
             self, 
             db_route: str
             ) -> None:
-        """Executes the strategy simulation and persists daily performance metrics.
+        """Executes the simulation and persists daily performance metrics.
 
-        Runs the strategy day-by-day over the configured date range. It specifically
-        handles `NotEnoughCashError` by triggering a final `buy_all` operation to
-        invest any remaining capital before stopping the simulation.
-
-        For each day, it triggers the trading logic, calculates the current equity
-        (Cash + Stock Value), and logs the performance. Finally, the performance
-        history is saved to the specified database.
+        Runs the strategy day-by-day. It specifically handles `NotEnoughCashError`
+        by triggering a final `buy_all` operation to invest remaining capital.
+        It calculates daily equity (Cash + Stock Value) and saves the consolidated
+        performance history to a SQLite database.
 
         Args:
-            db_route (str): The file path to the SQLite database where the performance
-                table (named after the strategy) will be saved.
+            db_route (str): The file path to the SQLite database where the
+                performance table will be saved.
         """
         
         date_range = get_date_range(self.start, self.end)
@@ -161,15 +169,17 @@ class BuyStrategy(Strategy):
                 print(f"Error saving results: {e}")            
 
 class DynamicBuyStrategy(BuyStrategy):
-    """Dynamic buy strategy based on percentage variations (Momentum/Reversion).
+    """Implements a dynamic buy strategy based on relative percentage variations.
 
-    Unlike the static strategy, this class decides to buy by comparing the current
-    price with the price from `n` periods ago (`trigger_lookback`).
-    Allows buying on dips (Buy the Dip) if the threshold is negative, or on
-    breakouts if the threshold is positive.
+    Unlike the static strategy, this class triggers buy orders by comparing the
+    current price with a historical reference price (`trigger_lookback`). It
+    supports two main behaviors:
+    1. Momentum/Breakout: Buying when price increases by X% (positive threshold).
+    2. Mean Reversion/Dip: Buying when price drops by X% (negative threshold).
 
     Attributes:
-        trigger_lookback (str): Reference time interval for price comparison (e.g., "1 day").
+        trigger_lookback (str): The time interval used to determine the historical
+            reference price (e.g., "1 day", "1 week").
     """
 
     def __init__(
@@ -185,25 +195,27 @@ class DynamicBuyStrategy(BuyStrategy):
             sizing_type: str = "static",
             name: str = "undefined_dynamic_buy_strategy"
             ):
-        """Initializes the dynamic strategy by validating percentage thresholds.
+        """Initializes the dynamic strategy and validates thresholds.
 
         Args:
             ticker (str): Asset symbol.
-            start (str): Start date.
-            end (str): End date.
+            start (str): Start date (YYYY-MM-DD).
+            end (str): End date (YYYY-MM-DD).
             capital (float): Initial capital.
             sf (StockFrame): Data manager.
-            amount_per_trade (float): Capital per trade.
-            threshold (float | tuple[float, float]): Percentage variation to trigger the buy.
-                - Ex: -0.05 implies buying if the price drops 5%.
-                - Ex: 0.10 implies buying if the price rises 10%.
-            trigger_lookback (str, optional): Reference time window. Defaults to "1 day".
-            sizing_type (str, optional): Sizing type.
+            amount_per_trade (float): Capital to invest per trade.
+            threshold (float | tuple[float, float]): The percentage variation trigger.
+                - Float > 0: Buy on breakout (e.g., 0.10 for +10%).
+                - Float < 0: Buy on dip (e.g., -0.05 for -5%).
+                - Tuple: Buy if the relative change falls within the range.
+            trigger_lookback (str, optional): The lookback period string.
+                Defaults to "1 day".
+            sizing_type (str, optional): Position sizing method. Defaults to "static".
             name (str, optional): Strategy name.
 
         Raises:
-            NotValidIntervalError: If the threshold indicates a drop greater than 100% (<= -1.0),
-                which is mathematically impossible for positive prices.
+            NotValidIntervalError: If any threshold value implies a drop of 100%
+                or more (<= -1.0), which is invalid for asset prices.
         """
 
         if isinstance(threshold, float):
@@ -227,18 +239,19 @@ class DynamicBuyStrategy(BuyStrategy):
             self,
             date: str
             ) -> None:
-        """Evaluates price variation relative to the past (Lookback).
+        """Evaluates price variation relative to the historical lookback period.
 
-        Calculates the reference price using `trigger_lookback`.
-        - If `threshold` is positive: Buys if current price has risen more than that %.
-        - If `threshold` is negative: Buys if current price has dropped more than that %.
-        - If `threshold` is tuple: Buys if current price falls within the projected range.
+        Calculates a reference price from `trigger_lookback` ago.
+        - If `threshold` > 0: Buys if current price >= reference * (1 + threshold).
+        - If `threshold` < 0: Buys if current price <= reference * (1 + threshold).
+        - If `threshold` is a tuple: Buys if the theoretical target price falls
+          within the calculated range.
 
         Args:
-            date (str): Current date to evaluate.
+            date (str): The current simulation date (YYYY-MM-DD).
 
         Raises:
-            StopChecking: If the end date is exceeded.
+            StopChecking: If the simulation end date is reached.
         """
 
         current_price = self.sf.get_price_in(date)

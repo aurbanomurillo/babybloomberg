@@ -48,6 +48,7 @@ class MultiStrategy(Strategy):
         self.profits: float = 0.0
         self.closed: bool = False
         self.name: str = "undefined_multi_strategy"
+        self.manual_orders_config = []
 
     def check_and_do(
             self, 
@@ -61,13 +62,18 @@ class MultiStrategy(Strategy):
         is added to the global fiat pool.
 
         Args:
-            date (str): Current date to evaluate.
+            date (str): Current date to evaluate in ISO format (YYYY-MM-DD).
         """
-
+        
+        super().check_and_do(date)
         for strat in self.active_strategies[:]:
             try:
                 strat.check_and_do(date)
-            except (StopChecking, NotEnoughStockError, NotEnoughCashError):
+            
+            except NotEnoughCashError:
+                pass 
+
+            except (StopChecking, NotEnoughStockError):
                 if not strat.closed:
                     try:
                         strat.close_trade(date, trigger="sub_strategy_finish")
@@ -78,7 +84,7 @@ class MultiStrategy(Strategy):
                 
                 self.finished_strategies.append(strat)
                 self.active_strategies.remove(strat)
-
+                
     def execute(self) -> None:
         """Runs the combined simulation over the calculated global date range.
 
@@ -157,7 +163,7 @@ class MultiStrategy(Strategy):
         the total profit.
 
         Args:
-            date (str): Date of closure.
+            date (str): Date of closure in ISO format (YYYY-MM-DD).
             trigger (str, optional): Reason for closure. Defaults to "force_close_global".
         """
 
@@ -172,8 +178,42 @@ class MultiStrategy(Strategy):
         self.profits = round(self.fiat - self.initial_capital, 2)
         self.closed = True
 
+    def _collect_ops_recursive(
+            self, 
+            strategy: Strategy
+            ) -> list[Operation]:
+        """Recursively collects operations from a strategy and its children.
+
+        Traverses the strategy hierarchy (including nested MultiStrategies) to
+        gather all trade operations performed by active or finished sub-strategies.
+
+        Args:
+            strategy (Strategy): The strategy instance to inspect.
+
+        Returns:
+            list[Operation]: A flat list of all operations found in the hierarchy.
+        """
+
+        ops = []
+        
+        if hasattr(strategy, 'operations'):
+            ops.extend(strategy.operations)
+            
+        if hasattr(strategy, 'active_strategies'):
+            for child in strategy.active_strategies:
+                ops.extend(self._collect_ops_recursive(child))
+                
+        if hasattr(strategy, 'finished_strategies'):
+            for child in strategy.finished_strategies:
+                ops.extend(self._collect_ops_recursive(child))
+                
+        return ops
+    
     def get_all_operations(self) -> list[str]:
         """Aggregates and sorts operations from all sub-strategies.
+
+        Recursively collects operations from all active and finished strategies
+        (including nested MultiStrategies) and sorts them chronologically.
 
         Returns:
             list[str]: A chronological list of descriptions for every buy/sell operation
@@ -181,25 +221,30 @@ class MultiStrategy(Strategy):
         """
 
         all_strats = self.active_strategies + self.finished_strategies
-        all_operations:list[Operation] = []
+        all_operations: list[Operation] = []
+        
         for strat in all_strats:
-            all_operations.extend(strat.operations)
+            all_operations.extend(self._collect_ops_recursive(strat))
         
         all_operations.sort(key=lambda x: x.date)
         return [op.get_description() for op in all_operations]
-
+    
     def print_operations(self) -> None:
         """Prints a consolidated log of all operations across the sub-strategies."""
 
-        print(f"--- Operations Detail for {self.name} ({len(self.finished_strategies) + len(self.active_strategies)} sub-strategies) ---")
-        for description in self.get_all_operations():
+        ops_descriptions = self.get_all_operations()
+        
+        print(f"--- Operations Detail for {self.name} ---")
+        for description in ops_descriptions:
             print(description)
 
     def print_performance(self) -> None:
         """Prints a summary of the global performance, aggregating capital and profits."""
 
         all_strats = self.active_strategies + self.finished_strategies
-        total_operations = sum(len(strat.operations) for strat in all_strats)
+        
+        ops_list = self.get_all_operations()
+        total_operations = len(ops_list)
 
         try:
             print(f"-" * 50)
@@ -250,4 +295,3 @@ class MultiStrategy(Strategy):
             active_capital += strat.get_current_capital(date)
         
         return round(self.fiat + active_capital, 2)
-        

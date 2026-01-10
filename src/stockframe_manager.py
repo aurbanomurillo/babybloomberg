@@ -1,5 +1,4 @@
-"""
-Custom DataFrame specialization for financial time series management.
+"""Custom DataFrame specialization for financial time series management.
 
 This module defines the `StockFrame` class, which extends the standard pandas
 DataFrame. It adds specific functionality for safely retrieving stock prices
@@ -11,15 +10,24 @@ import pandas as pd
 from datetime import datetime, timedelta
 
 class StockFrame(pd.DataFrame):
+    """A pandas DataFrame extension optimized for financial time series data.
+
+    This class provides specialized methods to handle common issues in financial
+    datasets, such as missing entries due to market holidays or weekends. It
+    ensures that data retrieval operations fail gracefully or return the most
+    recent valid data point.
+    """
 
     @property
-
     def _constructor(self):
         """Internal property to ensure slice/manipulation returns StockFrame instances.
 
         Overrides the standard pandas constructor property so that operations
         performed on a StockFrame (like slicing) return a StockFrame object
         instead of a generic pandas DataFrame.
+
+        Returns:
+            type: The StockFrame class reference.
         """
 
         return StockFrame
@@ -79,4 +87,3 @@ class StockFrame(pd.DataFrame):
             current_date_str = previous_date_dt.strftime("%Y-%m-%d")
 
         return None
-    

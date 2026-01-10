@@ -1,9 +1,8 @@
-"""
-External API integration module for fetching financial data.
+"""External API integration module for fetching financial data.
 
-This module manages connections with external data sources, primarily
-Yahoo Finance (via `yfinance`) and Wikipedia, to retrieve asset lists
-and historical price time series.
+This module handles the retrieval of financial data from external sources,
+specifically fetching the S&P 500 ticker list from Wikipedia and downloading
+historical market data using the Yahoo Finance API.
 """
 
 import yfinance as yf
@@ -11,19 +10,18 @@ import pandas as pd
 import requests
 from datetime import datetime, timedelta
 from io import StringIO
+from typing import List, Optional
 
+def get_sp500_tickers() -> List[str]:
+    """Retrieves the current list of S&P 500 tickers from Wikipedia.
 
-def get_sp500_tickers() -> list[str]:
-    """Retrieves the updated list of S&P 500 tickers from Wikipedia.
-
-    Performs an HTTP request to the S&P 500 Wikipedia page, extracts the components
-    table, and processes the symbols to ensure compatibility with Yahoo Finance
-    (e.g., replacing dots '.' with dashes '-').
+    Performs an HTTP GET request to the Wikipedia page for the S&P 500 index,
+    parses the constituents table, and sanitizes the ticker symbols (e.g.,
+    replacing dots with dashes) for compatibility with Yahoo Finance.
 
     Returns:
-        list[str]: An alphabetically sorted list of strings, where each string
-            is the symbol (ticker) of an S&P 500 company. Returns an empty
-            list `[]` if a request or parsing error occurs.
+        List[str]: An alphabetically sorted list of ticker symbols. Returns
+            an empty list if the request fails or parsing errors occur.
     """
 
     url = 'https://en.wikipedia.org/wiki/List_of_S%26P_500_companies'
@@ -32,7 +30,7 @@ def get_sp500_tickers() -> list[str]:
     }
 
     try:
-        response = requests.get(url, headers = headers)
+        response = requests.get(url, headers=headers)
         response.raise_for_status()
 
         tables = pd.read_html(StringIO(response.text))
@@ -51,63 +49,67 @@ def get_sp500_tickers() -> list[str]:
 
 def download_new_data(
         ticker: str,
-        start_date: str | None = None,
-        end_date: str | None = None
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None
         ) -> pd.DataFrame:
-    """Downloads historical price data for a specific ticker using Yahoo Finance.
+    """Downloads historical price data for a specific ticker via Yahoo Finance.
 
-    This function acts as an abstraction layer over `yfinance.download`.
-    It manages date logic to avoid redundant or future downloads.
-    If no dates are specified, it downloads the full available history.
+    This function acts as a wrapper for `yfinance.download`. It manages the
+    start and end dates to avoid downloading redundant data. If a `start_date`
+    is provided, data retrieval begins from the following day.
 
     Args:
-        ticker (str): The financial asset symbol (e.g., "AAPL", "MSFT").
-        start_date (str | None, optional): Start date in ISO format "YYYY-MM-DD".
-            If provided, the download will start from the day after this date.
-        end_date (str | None, optional): End date in ISO format "YYYY-MM-DD".
-            If provided, the download will include data up to this date (exclusive).
+        ticker (str): The asset ticker symbol (e.g., "AAPL").
+        start_date (Optional[str]): The start date in ISO format (YYYY-MM-DD).
+            If None, the full available history is downloaded.
+        end_date (Optional[str]): The end date in ISO format (YYYY-MM-DD).
+            Data is fetched up to this date (exclusive). If None, downloads
+            up to the most recent available data.
 
     Returns:
-        pd.DataFrame: A pandas DataFrame containing historical data (Open, High, Low, Close, Volume).
-            The DataFrame index is the date (DatetimeIndex).
-            Returns an empty DataFrame if the start date is in the future or no data is found.
+        pd.DataFrame: A DataFrame containing historical market data (Open, High,
+            Low, Close, Volume). Returns an empty DataFrame if the calculated
+            start date is in the future.
     """
-    
+
     if start_date == None:
         if end_date == None:
-            return yf.download( 
+            return yf.download(
                 ticker,
                 interval="1d",
                 progress=False,
                 auto_adjust=True
-                )
+            )
         else:
-            return yf.download( 
+            return yf.download(
                 ticker,
                 interval="1d",
                 progress=False,
                 auto_adjust=True,
                 end=end_date
-                )
+            )
 
     start = datetime.fromisoformat(start_date) + timedelta(days=1)
+
     if start >= datetime.now():
         return pd.DataFrame()
-    
+
+    start_str = start.strftime("%Y-%m-%d")
+
     if end_date == None:
         return yf.download(
             ticker,
-            start=start.strftime("%Y-%m-%d"),
+            start=start_str,
             interval="1d",
             progress=False,
             auto_adjust=True
         )
     else:
-        return yf.download( 
+        return yf.download(
             ticker,
+            start=start_str,
             interval="1d",
             progress=False,
             auto_adjust=True,
             end=end_date
-            )
-    
+        )

@@ -17,14 +17,14 @@ def round_price(data: pd.DataFrame) -> pd.DataFrame | StockFrame:
 
     Standardizes the format of the DataFrame by ensuring the index is named "Date"
     and rounding typical price columns (Open, High, Low, Close, Adj Close).
-    Handles potential MultiIndex structures returned by some data sources.
+    It also handles potential MultiIndex structures returned by some data sources.
 
     Args:
-        data (pd.DataFrame | StockFrame): Raw data containing price history.
+        data (pd.DataFrame): The raw data containing price history.
 
     Returns:
-        pd.DataFrame | StockFrame: The processed DataFrame with rounded float values.
-            Returns the original object if it is empty.
+        pd.DataFrame | StockFrame: The processed DataFrame with rounded float values
+            and a standardized string index. Returns the original object if it is empty.
     """
 
     if data.empty:
@@ -49,11 +49,12 @@ def get_price_in(
         ) -> float:
     """Retrieves the closing price for a specific date.
 
-    A helper function to safely extract the 'Close' value from the data source.
+    A helper function to safely extract the 'Close' value from the data source
+    using a string date key.
 
     Args:
-        df (StockFrame | pd.DataFrame): The data source.
-        date (str): The date to query (YYYY-MM-DD).
+        df (StockFrame | pd.DataFrame): The data source containing historical prices.
+        date (str): The date to query in "YYYY-MM-DD" format.
 
     Returns:
         float: The closing price on the specified date.
@@ -68,8 +69,8 @@ def get_date_range(
     """Generates a list of date strings between a start and end date (inclusive).
 
     Args:
-        start_str (str): Start date (YYYY-MM-DD).
-        end_str (str): End date (YYYY-MM-DD).
+        start_str (str): The start date in "YYYY-MM-DD" format.
+        end_str (str): The end date in "YYYY-MM-DD" format.
 
     Returns:
         list[str]: A list of strings representing every day in the range.
@@ -97,14 +98,14 @@ def subtract_interval(
     resulting past date.
 
     Args:
-        date_str (str): The reference date (YYYY-MM-DD).
+        date_str (str): The reference date in "YYYY-MM-DD" format.
         interval_str (str): The interval to subtract (e.g., "5 days", "1 year").
 
     Returns:
         str: The resulting past date in "YYYY-MM-DD" format.
 
     Raises:
-        NotValidIntervalError: If the unit (day, week, month, year) is not recognized.
+        NotValidIntervalError: If the time unit (day, week, month, year) is not recognized.
     """
     
     date_dt = datetime.strptime(date_str, "%Y-%m-%d")

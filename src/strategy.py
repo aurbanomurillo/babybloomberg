@@ -44,6 +44,7 @@ class Strategy():
             capital: float,
             sf: StockFrame,
             sizing_type: str = "static",
+            manual_orders: list[dict] = None, # [CORREGIDO] Default a None
             name: str = "undefined_strategy"
             ):
         """Initializes the strategy state.
@@ -57,6 +58,8 @@ class Strategy():
             sizing_type (str, optional): Default position sizing method.
                 Options: "static" (fixed amount), "initial" (% of starting cap),
                 "current" (% of current cap). Defaults to "static".
+            manual_orders (list[dict], optional): Configuration for manual orders
+                to be executed on specific dates. Defaults to None.
             name (str, optional): Strategy name. Defaults to "undefined_strategy".
 
         Raises:
@@ -74,11 +77,16 @@ class Strategy():
         self.profits: float | None = None
         self.operations: list[Operation] = []
         self.closed: bool = False
+        
+        if not manual_orders == None:
+            self.manual_orders_config: list[dict] = manual_orders 
+        else:
+            self.manual_orders_config: list[dict] = [] 
 
         if sizing_type in ["static", "initial", "current"]:
             self.sizing_type: str = sizing_type
         else:
-            raise ValueError(f"Sizing type '{self.sizing_type}' not recognized.")
+            raise ValueError(f"Sizing type '{sizing_type}' not recognized.")
         
     def _calculate_order_amount(
             self, 
@@ -117,14 +125,14 @@ class Strategy():
             return self.fiat * quantity
             
         else:
-            raise ValueError(f"Sizing type '{self.sizing_type}' not recognized.")
+            raise ValueError(f"Sizing type '{current_sizing}' not recognized.")
 
     def buy(
             self,
             quantity: float,
             date: str,
             trigger: str = "manual",
-            sizing_type: str = None
+            override_sizing_type: str = None
             ) -> None:
         """Executes a buy order (Long entry), robust to missing price data.
 
@@ -138,9 +146,9 @@ class Strategy():
 
         Args:
             quantity (float): Amount or percentage to buy.
-            date (str): Date of execution.
+            date (str): Date of execution (YYYY-MM-DD).
             trigger (str, optional): Reason for the trade. Defaults to "manual".
-            sizing_type (str, optional): Override for position sizing.
+            override_sizing_type (str, optional): Override for position sizing.
 
         Raises:
             NotEnoughCashError: If `fiat` is less than the calculated order cost.
@@ -154,10 +162,10 @@ class Strategy():
             print(f"Error in buy ({self.name}): No price found for {date}.")
             return
 
-        cash_amount = self._calculate_order_amount(quantity, override_sizing_type=sizing_type)
+        cash_amount = round(self._calculate_order_amount(quantity, override_sizing_type=override_sizing_type),2)
         
         if cash_amount >= 0.01:
-            if self.fiat - cash_amount >= -0.000001:
+            if self.fiat - cash_amount > -0.01:
                 self.fiat = round(self.fiat - cash_amount, 2)
                 self.stock += float(round(cash_amount / stock_price, 8))
                 self.operations.append(Operation("buy", cash_amount, self.ticker, stock_price, True, date, trigger))
@@ -176,18 +184,33 @@ class Strategy():
         `fiat` balance as the quantity.
 
         Args:
-            date (str): Date of execution.
+            date (str): Date of execution (YYYY-MM-DD).
             trigger (str, optional): Reason for the trade. Defaults to "manual".
         """
 
-        self.buy(self.fiat, date, trigger=trigger, sizing_type="static")
+        stock_price = self.sf.get_price_in(date)
+        if stock_price == None:
+            stock_price = self.sf.get_last_valid_price(date)
+        
+        if stock_price == None:
+            print(f"Error in buy_all ({self.name}): No price found for {date}.")
+            return
+
+        if self.fiat > 0:
+            cash_spent = self.fiat
+            stock_gained = float(round(cash_spent / stock_price, 8))
+            
+            self.fiat = 0.0
+            self.stock += stock_gained
+            
+            self.operations.append(Operation("buy", cash_spent, self.ticker, stock_price, True, date, trigger))
 
     def sell(
             self,
             quantity: float,
             date: str,
             trigger: str = "manual",
-            sizing_type: str = None
+            override_sizing_type: str = None
             ) -> None:
         """Executes a sell order (Long exit), robust to missing price data.
 
@@ -201,18 +224,18 @@ class Strategy():
 
         Args:
             quantity (float): Amount or percentage to sell.
-            date (str): Date of execution.
+            date (str): Date of execution (YYYY-MM-DD).
             trigger (str, optional): Reason for the trade. Defaults to "manual".
-            sizing_type (str, optional): Override for position sizing.
+            override_sizing_type (str, optional): Override for position sizing.
 
         Raises:
             NotEnoughStockError: If `stock` holdings are less than the sell amount.
         """
         
-        if not sizing_type == None:
-            current_sizing = sizing_type
-        else:
+        if override_sizing_type == None:
             current_sizing = self.sizing_type
+        else:
+            current_sizing = override_sizing_type
 
         stock_price = self.sf.get_price_in(date)
         if stock_price == None:
@@ -222,10 +245,12 @@ class Strategy():
             print(f"Error in sell ({self.name}): No price found for {date}.")
             return
 
-        if current_sizing == "current":
+        if current_sizing == "initial":
             cash_amount = round(self.stock * stock_price * quantity, 2)
+        elif current_sizing == "current":
+            cash_amount = round(self._calculate_order_amount(quantity, override_sizing_type=override_sizing_type),2)
         else:
-            cash_amount = self._calculate_order_amount(quantity, override_sizing_type=sizing_type)
+            cash_amount = round(self._calculate_order_amount(quantity, override_sizing_type=override_sizing_type),2)
         
         if cash_amount >= 0.01:
             stock_amount = float(round(cash_amount / stock_price, 8))
@@ -250,7 +275,7 @@ class Strategy():
         last valid historical price to calculate the total liquidation value.
 
         Args:
-            date (str): Date of execution.
+            date (str): Date of execution (YYYY-MM-DD).
             trigger (str, optional): Reason for the trade. Defaults to "manual".
         """
         
@@ -261,9 +286,13 @@ class Strategy():
         if stock_price == None:
             return 
 
-        self.sell(self.stock * stock_price, date, trigger, sizing_type="static")   
-
-
+        if self.stock > 0:
+            cash_value = round(self.stock * stock_price, 2)
+            self.fiat = round(self.fiat + cash_value, 2)
+            
+            self.stock = 0.0
+            
+            self.operations.append(Operation("sell", cash_value, self.ticker, stock_price, True, date, trigger))
 
     def close_trade(
             self,
@@ -277,7 +306,7 @@ class Strategy():
         the end of a simulation or when a stop condition is met.
 
         Args:
-            date (str): Date of closure.
+            date (str): Date of closure (YYYY-MM-DD).
             trigger (str, optional): Reason for closure. Defaults to "force_close".
         """
 
@@ -394,7 +423,11 @@ class Strategy():
             self, 
             name:str
             ) -> None:
-        """Updates the identifier name of the strategy."""
+        """Updates the identifier name of the strategy.
+
+        Args:
+            name (str): The new name for the strategy.
+        """
         
         self.name = name
     
@@ -422,6 +455,48 @@ class Strategy():
             
         stock_value = self.stock * price
         return round(self.fiat + stock_value, 2)
+
+    def check_and_do(
+            self, 
+            date: str
+            ) -> None:
+        """Executes manual orders configured for the specific date.
+
+        Iterates through the `manual_orders_config` list and executes any order
+        whose scheduled date matches the current simulation date.
+
+        Args:
+            date (str): The current simulation date (YYYY-MM-DD).
+        """
+        for order in self.manual_orders_config:
+            if order['date'] == date:
+                order_type = order['type']
+                amount = order['amount']
+                sizing = order.get('override_sizing_type', self.sizing_type)
+
+                try:
+                    if order_type == "buy":
+                        self.buy(amount, date, trigger="manual_order", override_sizing_type=sizing)
+                    elif order_type == "buy_all":
+                        self.buy_all(date, trigger="manual_order")
+                    elif order_type == "sell":
+                        self.sell(amount, date, trigger="manual_order", override_sizing_type=sizing)
+                    elif order_type == "sell_all":
+                        self.sell_all(date, trigger="manual_order")
+                except (NotEnoughCashError, NotEnoughStockError):
+                    print(f"Warning: Manual order {order_type} on {date} failed due to insufficient funds/stock.")
+
+    def execute(self) -> None:
+        """Runs the main strategy loop over the date range.
+
+        Iterates day-by-day calling `check_and_do` to process manual orders or
+        any other logic defined in subclasses. Closes the trade at the end.
+        """
+        for date in track(self.sf.index, description=f"Executing {self.name}..."):
+            if self.start <= date <= self.end:
+                self.check_and_do(date)
+        
+        self.close_trade(self.end)
 
     def execute_and_save(
             self,

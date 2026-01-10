@@ -33,12 +33,13 @@ class SellStrategy(Strategy):
             threshold: tuple[float, float] | float,
             sizing_type: str = "static",
             name: str = "undefined_static_sell_strategy"
-            ):
+            ) -> None:
         """Initializes the sell strategy and executes an initial 'buy all'.
 
-        Note: If the provided `start` date lacks data (e.g., it is a holiday), the 
-        strategy automatically advances the start date to the next available trading day
-        to ensure the initial purchase can be executed.
+        Note:
+            If the provided `start` date lacks data (e.g., it is a holiday), the 
+            strategy automatically advances the start date to the next available trading day
+            to ensure the initial purchase can be executed.
 
         Args:
             ticker (str): Asset symbol.
@@ -47,7 +48,7 @@ class SellStrategy(Strategy):
             capital (float): Initial capital.
             sf (StockFrame): Data manager.
             amount_per_trade (float): Value to sell per signal.
-            threshold (float | tuple[float, float]):
+            threshold (float | tuple[float, float]): The price trigger.
                 - If float: Exact price to trigger sell.
                 - If tuple: Price range (min, max) to trigger sell.
             sizing_type (str, optional): Sizing type. Defaults to "static".
@@ -77,12 +78,13 @@ class SellStrategy(Strategy):
         If so, executes a sell order.
 
         Args:
-            date (str): Current date.
+            date (str): Current date in ISO format (YYYY-MM-DD).
 
         Raises:
             StopChecking: If the simulation end date is reached.
         """
 
+        super().check_and_do(date)
         current_price = self.sf.get_price_in(date)
         if type(self.threshold) == tuple:
             if self.start <= date < self.end and not current_price == None and self.threshold[0] <= current_price <= self.threshold[1]:
@@ -188,7 +190,7 @@ class DynamicSellStrategy(SellStrategy):
             trigger_lookback: str = "1 day",
             sizing_type: str = "static",
             name: str = "undefined_dynamic_sell_strategy"
-            ):
+            ) -> None:
         """Initializes the dynamic sell strategy with validation.
 
         Args:
@@ -237,7 +239,7 @@ class DynamicSellStrategy(SellStrategy):
         - Negative threshold: Sells if price fell >= X% (Stop Loss).
 
         Args:
-            date (str): Current date.
+            date (str): Current date in ISO format (YYYY-MM-DD).
 
         Raises:
             StopChecking: If end date is reached.

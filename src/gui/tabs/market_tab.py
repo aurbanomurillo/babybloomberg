@@ -1,5 +1,4 @@
-"""
-Market visualization interface for displaying historical price charts.
+"""Market visualization interface for displaying historical price charts.
 
 This module defines the `MarketTab` class, which embeds a Matplotlib figure
 within the Tkinter interface. It allows users to select a ticker from the
@@ -17,8 +16,7 @@ from src.stockframe_manager import StockFrame
 from src.database import get_sf_from_sqlite, get_existing_tickers
 
 class MarketTab(ttk.Frame):
-    """
-    A GUI tab for visualizing stock market data using interactive charts.
+    """A GUI tab for visualizing stock market data using interactive charts.
 
     Integrates `matplotlib` and `mplfinance` to render financial charts.
     Provides controls to select a ticker, toggle between candlestick and line
@@ -36,9 +34,8 @@ class MarketTab(ttk.Frame):
     def __init__(
             self,
             parent: ttk.Notebook
-            ):
-        """
-        Initializes the market tab UI components and plotting backend.
+            ) -> None:
+        """Initializes the market tab UI components and plotting backend.
 
         Sets up the control panel (dropdowns, buttons) and the graph area
         containing the Matplotlib canvas and toolbar.
@@ -89,8 +86,7 @@ class MarketTab(ttk.Frame):
         self.canvas.get_tk_widget().pack(side="top", fill="both", expand=True)
 
     def refresh_ticker_list(self) -> None:
-        """
-        Fetches the list of available tickers from the database and updates the UI.
+        """Fetches the list of available tickers from the database and updates the UI.
 
         Queries `src.database.get_existing_tickers` and populates the
         `combo_ticker` values. Selects the first option if available.
@@ -102,8 +98,7 @@ class MarketTab(ttk.Frame):
             self.combo_ticker.current(0) 
 
     def on_view_click(self) -> None:
-        """
-        Handles the click event for the 'Visualize' button.
+        """Handles the click event for the 'Visualize' button.
 
         Validates the selected ticker and initiates the data loading process
         (`_load_db_data`) in a separate daemon thread to prevent UI freezing.
@@ -121,8 +116,7 @@ class MarketTab(ttk.Frame):
             self,
             ticker: str
             ) -> None:
-        """
-        Fetches historical data for the specified ticker from the database.
+        """Fetches historical data for the specified ticker from the database.
 
         Intended to run in a separate thread. Retrieves the `StockFrame`
         via `src.database.get_sf_from_sqlite` and schedules the UI update
@@ -142,9 +136,8 @@ class MarketTab(ttk.Frame):
             self,
             ticker: str,
             sf: StockFrame
-            ):
-        """
-        Renders the chart on the UI using the fetched data.
+            ) -> None:
+        """Renders the chart on the UI using the fetched data.
 
         Clears the current axes and plots the new data using `mplfinance`.
         Handles the logic for switching between line and candlestick charts based
@@ -192,10 +185,9 @@ class MarketTab(ttk.Frame):
 
     def _handle_error(
             self,
-            msg
+            msg: str
             ) -> None:
-        """
-        Displays an error message to the user safely from the UI thread.
+        """Displays an error message to the user safely from the UI thread.
 
         Args:
             msg (str): The error description to display.

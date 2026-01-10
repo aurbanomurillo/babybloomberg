@@ -1,9 +1,8 @@
-"""
-Main entry point for the BabyBloomberg graphical user interface.
+"""Main entry point for the BabyBloomberg graphical user interface.
 
 This module defines the primary application class `BabyBloombergApp`, which
 initializes the main window, configures the layout, and manages the top-level
-navigation tabs (Download and Market visualization).
+navigation tabs (Download, Market visualization, and Strategy Creator).
 """
 
 import tkinter as tk
@@ -11,10 +10,10 @@ from tkinter import ttk
 import os
 from src.gui.tabs.market_tab import MarketTab
 from src.gui.tabs.download_tab import DownloadTab
+from src.gui.tabs.strategy_creation_tab import StrategyCreationTab
 
 class BabyBloombergApp(tk.Tk):
-    """
-    The main application window for the BabyBloomberg Terminal.
+    """The main application window for the BabyBloomberg Terminal.
 
     Inherits from `tkinter.Tk` and serves as the root container for the application.
     It manages the lifecycle of the GUI, including window configuration, tab
@@ -25,11 +24,11 @@ class BabyBloombergApp(tk.Tk):
             functional modules (tabs) of the application.
         download_tab (DownloadTab): The instance of the data download tab.
         market_tab (MarketTab): The instance of the market visualization tab.
+        strategy_tab (StrategyCreationTab): The instance of the strategy creation tab.
     """
 
-    def __init__(self):
-        """
-        Initializes the main application window and its components.
+    def __init__(self) -> None:
+        """Initializes the main application window and its components.
 
         Sets the window title, dimensions, and close event protocol. It also
         instantiates the `ttk.Notebook` widget and calls `_init_tabs` to
@@ -50,11 +49,10 @@ class BabyBloombergApp(tk.Tk):
         self._init_tabs()
 
     def _init_tabs(self) -> None:
-        """
-        Initializes and adds the functional tabs to the application notebook.
+        """Initializes and adds the functional tabs to the application notebook.
 
-        Creates instances of `DownloadTab` and `MarketTab` and adds them
-        to the `self.notebook` container with appropriate labels.
+        Creates instances of `DownloadTab`, `MarketTab`, and `StrategyCreationTab`,
+        and adds them to the `self.notebook` container with appropriate labels.
         """
 
         self.download_tab = DownloadTab(self.notebook)
@@ -63,9 +61,11 @@ class BabyBloombergApp(tk.Tk):
         self.market_tab = MarketTab(self.notebook)
         self.notebook.add(self.market_tab, text="Visualize Market")
 
+        self.strategy_tab = StrategyCreationTab(self.notebook)
+        self.notebook.add(self.strategy_tab, text="3. Strategy Creator")
+
     def on_close(self) -> None:
-        """
-        Handles the window closure event.
+        """Handles the window closure event.
 
         Ensures a clean exit by destroying the window widgets and forcing
         termination of the Python process to stop any background threads.
@@ -76,8 +76,7 @@ class BabyBloombergApp(tk.Tk):
         os._exit(0)
 
     def run(self) -> None:
-        """
-        Starts the main event loop of the application.
+        """Starts the main event loop of the application.
 
         This method blocks execution until the window is closed by the user.
         """

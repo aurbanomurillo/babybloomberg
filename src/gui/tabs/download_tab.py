@@ -37,12 +37,12 @@ class DownloadTab(ttk.Frame):
         
         super().__init__(parent)
 
-        lbl_info:ttk.Label = ttk.Label(self, text="Enter Tickers to Download (separated by space or comma):", font=("Arial", 10, "bold"))
+        lbl_info: ttk.Label = ttk.Label(self, text="Enter Tickers to Download (separated by space or comma):", font=("Arial", 10, "bold"))
         lbl_info.pack(anchor="w", padx=20, pady=(20, 5))
 
         self.txt_input: tk.Text = tk.Text(self, height=5, width=60)
         self.txt_input.pack(padx=20, pady=5)
-        self.txt_input.insert("1.0", "AAPL MSFT SPY") # Default example
+        self.txt_input.insert("1.0", "AAPL MSFT SPY")
 
         btn_frame: ttk.Frame = ttk.Frame(self)
         btn_frame.pack(fill="x", padx=20, pady=10)
@@ -50,7 +50,7 @@ class DownloadTab(ttk.Frame):
         self.btn_download: ttk.Button = ttk.Button(btn_frame, text="Download / Update All", command=self.on_download_click)
         self.btn_download.pack(side="left")
 
-        self.lbl_status = ttk.Label(self, text="Ready.", foreground="gray")
+        self.lbl_status: ttk.Label = ttk.Label(self, text="Ready.", foreground="gray")
         self.lbl_status.pack(anchor="w", padx=20, pady=5)
 
         self.progress: ttk.Progressbar = ttk.Progressbar(self, orient="horizontal", length=400, mode="determinate")

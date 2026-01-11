@@ -44,7 +44,7 @@ class Strategy():
             capital: float,
             sf: StockFrame,
             sizing_type: str = "static",
-            manual_orders: list[dict] = None, # [CORREGIDO] Default a None
+            manual_orders: list[dict] | None = None,
             name: str = "undefined_strategy"
             ):
         """Initializes the strategy state.
@@ -58,7 +58,7 @@ class Strategy():
             sizing_type (str, optional): Default position sizing method.
                 Options: "static" (fixed amount), "initial" (% of starting cap),
                 "current" (% of current cap). Defaults to "static".
-            manual_orders (list[dict], optional): Configuration for manual orders
+            manual_orders (list[dict] | None, optional): Configuration for manual orders
                 to be executed on specific dates. Defaults to None.
             name (str, optional): Strategy name. Defaults to "undefined_strategy".
 
@@ -91,7 +91,7 @@ class Strategy():
     def _calculate_order_amount(
             self, 
             quantity: float, 
-            override_sizing_type: str = None
+            override_sizing_type: str | None = None
             ) -> float:
         """Calculates the cash value of an order based on the sizing type.
 
@@ -100,7 +100,7 @@ class Strategy():
 
         Args:
             quantity (float): The raw input quantity (amount or percentage).
-            override_sizing_type (str, optional): A specific sizing type for this calculation
+            override_sizing_type (str | None, optional): A specific sizing type for this calculation
                 that overrides the instance default.
 
         Returns:
@@ -132,7 +132,7 @@ class Strategy():
             quantity: float,
             date: str,
             trigger: str = "manual",
-            override_sizing_type: str = None
+            override_sizing_type: str | None = None
             ) -> None:
         """Executes a buy order (Long entry), robust to missing price data.
 
@@ -148,7 +148,7 @@ class Strategy():
             quantity (float): Amount or percentage to buy.
             date (str): Date of execution (YYYY-MM-DD).
             trigger (str, optional): Reason for the trade. Defaults to "manual".
-            override_sizing_type (str, optional): Override for position sizing.
+            override_sizing_type (str | None, optional): Override for position sizing.
 
         Raises:
             NotEnoughCashError: If `fiat` is less than the calculated order cost.
@@ -210,7 +210,7 @@ class Strategy():
             quantity: float,
             date: str,
             trigger: str = "manual",
-            override_sizing_type: str = None
+            override_sizing_type: str | None = None
             ) -> None:
         """Executes a sell order (Long exit), robust to missing price data.
 
@@ -226,7 +226,7 @@ class Strategy():
             quantity (float): Amount or percentage to sell.
             date (str): Date of execution (YYYY-MM-DD).
             trigger (str, optional): Reason for the trade. Defaults to "manual".
-            override_sizing_type (str, optional): Override for position sizing.
+            override_sizing_type (str | None, optional): Override for position sizing.
 
         Raises:
             NotEnoughStockError: If `stock` holdings are less than the sell amount.
@@ -339,7 +339,7 @@ class Strategy():
 
         return round(self.profits / self.initial_capital, 8)
 
-    def print_performance(self):
+    def print_performance(self) -> None:
         """Prints a formatted summary of the strategy's performance.
 
         Displays the number of operations, initial and final capital, absolute
@@ -358,7 +358,7 @@ class Strategy():
         except TradeNotClosed:
             print(f"Trade not closed.")
 
-    def print_operations(self):
+    def print_operations(self) -> None:
         """Prints the description of every operation recorded in the log."""
 
         print(f"--- Operations Detail for {self.name} ({len(self.operations)} operations) ---")
@@ -394,8 +394,8 @@ class Strategy():
     
     def __add__(
             self, 
-            strat2
-            ):
+            strat2: "Strategy"
+            ) -> "Strategy":
         """Overloads the `+` operator to combine strategies.
 
         Allows creating a `MultiStrategy` container by simply adding two strategy
@@ -403,10 +403,10 @@ class Strategy():
         individual strategies and existing MultiStrategies.
 
         Args:
-            strat2 (Strategy | MultiStrategy): The strategy to combine with this one.
+            strat2 (Strategy): The strategy to combine with this one.
 
         Returns:
-            MultiStrategy: A new container holding both strategies.
+            Strategy: A new container (MultiStrategy) holding both strategies.
         """
 
         from src.multi_strategy import MultiStrategy
@@ -421,7 +421,7 @@ class Strategy():
 
     def set_name(
             self, 
-            name:str
+            name: str
             ) -> None:
         """Updates the identifier name of the strategy.
 

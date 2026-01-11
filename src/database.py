@@ -55,13 +55,11 @@ def load_stock(ticker: str) -> None:
         data = download_new_data(ticker, last_date)
 
         if data.empty:
-            # print(f"{ticker}: already updated")
             return None
 
         clean_data = round_price(data)
         save_to_db(ticker, clean_data)
 
-        # print(f"{ticker}: updated from {clean_data['Date'].iloc[0]} to {clean_data['Date'].iloc[-1]}")
     except Exception as e:
         print(f"{ticker} failed: {e}")
 
@@ -104,7 +102,7 @@ def get_first_date(
         elif isinstance(ticker, StockFrame):
             return ticker.index[0]
 
-    except (pd.errors.DatabaseError, sqlite3.OperationalError) as e:
+    except (pd.errors.DatabaseError, sqlite3.OperationalError):
         return None
 
 def get_last_date(
@@ -132,7 +130,6 @@ def get_last_date(
             return df.index[-1]
         elif isinstance(ticker, StockFrame):
             return ticker.index[-1]
-
 
     except (pd.errors.DatabaseError, sqlite3.OperationalError): 
         return None

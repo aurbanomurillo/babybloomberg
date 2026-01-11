@@ -51,7 +51,6 @@ class StockFrame(pd.DataFrame):
         try:
             return float(self.loc[date]['Close'])
         except KeyError:
-            # print(f"Error: Date {date} not found in data.").
             return None
     
     def get_last_valid_price(

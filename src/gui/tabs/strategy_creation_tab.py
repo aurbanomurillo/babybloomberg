@@ -39,13 +39,13 @@ class StrategyCreationTab(ttk.Frame):
 
     STRATEGY_TYPES = {
         "Manual (Base)": Strategy,
+        "Buy (Dynamic/Dip)": DynamicBuyStrategy,
+        "Buy (Static Price)": BuyStrategy,
+        "Sell (Dynamic/Trailing)": DynamicSellStrategy,
+        "Sell (Static Price)": SellStrategy,
         "Bounded (SL/TP/Time)": BoundedStrategy,
         "Multi Bounded": MultiBoundedStrategy,
-        "Multi Dynamic Bounded": MultiDynamicBoundedStrategy,
-        "Buy (Static Price)": BuyStrategy,
-        "Buy (Dynamic/Dip)": DynamicBuyStrategy,
-        "Sell (Static Price)": SellStrategy,
-        "Sell (Dynamic/Trailing)": DynamicSellStrategy
+        "Multi Dynamic Bounded": MultiDynamicBoundedStrategy
     }
 
     SIZING_OPTIONS = ["$", "% Initial", "% Current"]

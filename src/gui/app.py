@@ -2,13 +2,13 @@
 
 This module defines the primary application class `BabyBloombergApp`, which
 initializes the main window, configures the layout, and manages the top-level
-navigation tabs (Download, Market visualization, and Strategy Creator).
+navigation tabs (Download, Visualization, and Strategy Creator).
 """
 
 import tkinter as tk
 from tkinter import ttk
 import os
-from src.gui.tabs.market_tab import MarketTab
+from src.gui.tabs.market_tab import VisualizationTab
 from src.gui.tabs.download_tab import DownloadTab
 from src.gui.tabs.strategy_creation_tab import StrategyCreationTab
 
@@ -23,9 +23,14 @@ class BabyBloombergApp(tk.Tk):
         notebook (ttk.Notebook): The tabbed container widget holding the different
             functional modules (tabs) of the application.
         download_tab (DownloadTab): The instance of the data download tab.
-        market_tab (MarketTab): The instance of the market visualization tab.
+        visualization_tab (VisualizationTab): The instance of the visualization tab.
         strategy_tab (StrategyCreationTab): The instance of the strategy creation tab.
     """
+
+    notebook: ttk.Notebook
+    download_tab: DownloadTab
+    visualization_tab: VisualizationTab
+    strategy_tab: StrategyCreationTab
 
     def __init__(self) -> None:
         """Initializes the main application window and its components.
@@ -51,18 +56,18 @@ class BabyBloombergApp(tk.Tk):
     def _init_tabs(self) -> None:
         """Initializes and adds the functional tabs to the application notebook.
 
-        Creates instances of `DownloadTab`, `MarketTab`, and `StrategyCreationTab`,
+        Creates instances of `DownloadTab`, `VisualizationTab`, and `StrategyCreationTab`,
         and adds them to the `self.notebook` container with appropriate labels.
         """
 
         self.download_tab = DownloadTab(self.notebook)
         self.notebook.add(self.download_tab, text="Download Data")
 
-        self.market_tab = MarketTab(self.notebook)
-        self.notebook.add(self.market_tab, text="Visualize Market")
+        self.visualization_tab = VisualizationTab(self.notebook)
+        self.notebook.add(self.visualization_tab, text="Visualization")
 
         self.strategy_tab = StrategyCreationTab(self.notebook)
-        self.notebook.add(self.strategy_tab, text="3. Strategy Creator")
+        self.notebook.add(self.strategy_tab, text="Strategy Creator")
 
     def on_close(self) -> None:
         """Handles the window closure event.

@@ -1,5 +1,4 @@
-"""
-Data processing and date manipulation utilities.
+"""Data processing and date manipulation utilities.
 
 This module provides helper functions to clean financial data (rounding prices),
 extract specific price points, and handle date arithmetic (generating ranges
@@ -107,7 +106,7 @@ def subtract_interval(
     Raises:
         NotValidIntervalError: If the time unit (day, week, month, year) is not recognized.
     """
-    
+
     date_dt = datetime.strptime(date_str, "%Y-%m-%d")
     
     parts = interval_str.split()

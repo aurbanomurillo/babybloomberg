@@ -1,5 +1,4 @@
-"""
-Orchestrator for concurrent execution of multiple trading strategies.
+"""Orchestrator for concurrent execution of multiple trading strategies.
 
 This module defines a container class that manages and executes a collection
 of different strategy instances simultaneously. It aggregates their capital,
@@ -21,12 +20,17 @@ class MultiStrategy(Strategy):
         active_strategies (list[Strategy]): List of currently running strategies.
         finished_strategies (list[Strategy]): List of completed strategies.
         fiat (float): Aggregated available cash (cleared from finished strategies).
+        initial_capital (float): Total starting capital sum of all sub-strategies.
+        profits (float): Aggregated realized profits.
+        closed (bool): Flag indicating if the multi-strategy has finalized.
+        name (str): Identifier for the multi-strategy container.
+        manual_orders_config (list): Configuration for manual orders (unused in container).
     """
 
     def __init__(
             self,
-            strats: list[Strategy],
-            ):
+            strats: list[Strategy]
+            ) -> None:
         """Initializes the multi-strategy manager.
 
         Calculates the global simulation period (earliest start date to latest end date)
@@ -48,7 +52,7 @@ class MultiStrategy(Strategy):
         self.profits: float = 0.0
         self.closed: bool = False
         self.name: str = "undefined_multi_strategy"
-        self.manual_orders_config = []
+        self.manual_orders_config: list = []
 
     def check_and_do(
             self, 
@@ -64,7 +68,7 @@ class MultiStrategy(Strategy):
         Args:
             date (str): Current date to evaluate in ISO format (YYYY-MM-DD).
         """
-        
+
         super().check_and_do(date)
         for strat in self.active_strategies[:]:
             try:
@@ -108,7 +112,6 @@ class MultiStrategy(Strategy):
         Runs the strategy manager day-by-day over the configured date range. It triggers
         the daily logic for all active sub-strategies, aggregates their combined 
         financial state (Cash + Stock Value), and logs the consolidated performance.
-
         Finally, the performance history is saved to the specified database.
 
         Args:
@@ -116,7 +119,7 @@ class MultiStrategy(Strategy):
                 performance table (named after the strategy) will be saved. 
                 Defaults to "strategy_data.db".
         """
-        
+
         date_range = get_date_range(self.start, self.end)
         
         performance_log = []
@@ -133,7 +136,8 @@ class MultiStrategy(Strategy):
                 "Date": date,
                 "Cash": round(self.fiat, 2),
                 "Stock_Value": round(invested_value, 2),
-                "Total_Equity": round(total_equity, 2)
+                "Total_Equity": round(total_equity, 2),
+                "Profit": round(total_equity / self.initial_capital, 4)
             })
 
         self.close_trade(self.end)
@@ -267,7 +271,7 @@ class MultiStrategy(Strategy):
         Raises:
             TradeNotClosed: If the strategy is still running (has not been closed).
         """
-        
+
         if self.closed:
             return self.profits
         else:
@@ -289,8 +293,8 @@ class MultiStrategy(Strategy):
         Returns:
             float: Total consolidated portfolio value rounded to 2 decimal places.
         """
-
-        active_capital = 0
+        
+        active_capital = 0.0
         for strat in self.active_strategies:
             active_capital += strat.get_current_capital(date)
         

@@ -55,7 +55,7 @@ class StrategyCreationTab(ttk.Frame):
     ORDER_TYPES = ["buy", "buy_all", "sell", "sell_all"]
 
     def __init__(
-            self, 
+            self,
             parent: tk.Widget
             ) -> None:
         """
@@ -69,23 +69,23 @@ class StrategyCreationTab(ttk.Frame):
         """
 
         super().__init__(parent)
-        
+
         self.var_name = tk.StringVar(value="My_Strategy")
         self.var_ticker = tk.StringVar()
         self.var_capital = tk.DoubleVar(value=10000.0)
         self.var_start = tk.StringVar(value="2020-01-01")
         self.var_end = tk.StringVar(value="2026-01-01")
         self.var_strat_type = tk.StringVar()
-        
+
         self.var_amount = tk.DoubleVar(value=1000.0)
         self.var_sizing_type = tk.StringVar(value="$")
-        
+
         self.var_sl = tk.DoubleVar(value=0.0)
         self.var_sl_type = tk.StringVar(value="$")
         self.var_tp = tk.DoubleVar(value=0.0)
         self.var_tp_type = tk.StringVar(value="$")
 
-        self.target_rows: List[Dict[str, Any]] = []
+        self.target_rows: list[dict[str, Any]] = []
 
         self.var_hold = tk.StringVar(value="30 days")
         self.var_use_hold = tk.BooleanVar(value=True)
@@ -97,9 +97,9 @@ class StrategyCreationTab(ttk.Frame):
         self.var_use_range = tk.BooleanVar(value=False)
         self.var_thresh_min = tk.DoubleVar(value=0.0)
         self.var_thresh_max = tk.DoubleVar(value=0.0)
-        
-        self.manual_orders: List[Dict[str, Any]] = []
-        self.created_strategies_data: List[Dict[str, Any]] = [] 
+
+        self.manual_orders: list[dict[str, Any]] = []
+        self.created_strategies_data: list[dict[str, Any]] = []
 
         self._init_ui()
 
@@ -127,18 +127,21 @@ class StrategyCreationTab(ttk.Frame):
         Includes general settings (Name, Ticker, Capital, Dates) and dynamic
         parameter inputs based on the selected strategy type.
         """
-        
+
         common_frame = ttk.LabelFrame(self.left_panel, text="General Configuration", padding=10)
         common_frame.pack(fill="x", padx=10, pady=5)
 
         grid_opts = {'padx': 5, 'pady': 5, 'sticky': 'w'}
-        
+
         ttk.Label(common_frame, text="Strategy Name:").grid(row=0, column=0, **grid_opts)
         ttk.Entry(common_frame, textvariable=self.var_name).grid(row=0, column=1, **grid_opts)
 
         ttk.Label(common_frame, text="Ticker:").grid(row=0, column=2, **grid_opts)
         self.combo_ticker = ttk.Combobox(common_frame, textvariable=self.var_ticker, state="readonly")
         self.combo_ticker.grid(row=0, column=3, **grid_opts)
+
+        ttk.Button(common_frame, text="↻", width=3, command=self._refresh_tickers).grid(row=0, column=4, **grid_opts)
+
         self._refresh_tickers()
 
         ttk.Label(common_frame, text="Initial Capital ($):").grid(row=1, column=0, **grid_opts)
@@ -152,7 +155,7 @@ class StrategyCreationTab(ttk.Frame):
 
         type_frame = ttk.Frame(self.left_panel, padding=10)
         type_frame.pack(fill="x", padx=10)
-        
+
         ttk.Label(type_frame, text="Select Strategy Type:", font=("Arial", 10, "bold")).pack(side="left", padx=5)
         self.combo_type = ttk.Combobox(type_frame, textvariable=self.var_strat_type, state="readonly", width=30)
         self.combo_type['values'] = list(self.STRATEGY_TYPES.keys())
@@ -164,10 +167,10 @@ class StrategyCreationTab(ttk.Frame):
 
         btn_frame = ttk.Frame(self.left_panel, padding=10)
         btn_frame.pack(fill="x", padx=10, pady=5)
-        
+
         self.btn_create = ttk.Button(btn_frame, text="Create & Add to List", command=self._create_strategy_dispatcher)
         self.btn_create.pack(side="right")
-        
+
         self.combo_type.current(0)
         self._on_type_changed(None)
 
@@ -184,7 +187,7 @@ class StrategyCreationTab(ttk.Frame):
 
         cols = ("check", "name", "type", "ticker", "perf", "ops")
         self.tree_list = ttk.Treeview(self.right_panel, columns=cols, show="headings", selectmode="browse")
-        
+
         self.tree_list.heading("check", text="✔")
         self.tree_list.heading("name", text="Name")
         self.tree_list.heading("type", text="Type")
@@ -201,7 +204,7 @@ class StrategyCreationTab(ttk.Frame):
 
         scrollbar = ttk.Scrollbar(self.right_panel, orient="vertical", command=self.tree_list.yview)
         self.tree_list.configure(yscroll=scrollbar.set)
-        
+
         self.tree_list.pack(side="top", fill="both", expand=True, padx=5)
         scrollbar.pack(side="right", fill="y")
 
@@ -212,17 +215,20 @@ class StrategyCreationTab(ttk.Frame):
 
         row1 = ttk.Frame(action_frame)
         row1.pack(fill="x", pady=2)
-        
+
         self.btn_exec = ttk.Button(row1, text="Execute Selected", command=lambda: self._execute_selected(save=False))
         self.btn_exec.pack(side="left", expand=True, fill="x", padx=1)
-        
-        self.btn_exec_save = ttk.Button(row1, text="Exec & Save Selected", command=lambda: self._execute_selected(save=True))
+
+        self.btn_exec_save = ttk.Button(row1, text="Exec & Save Selected",
+                                        command=lambda: self._execute_selected(save=True))
         self.btn_exec_save.pack(side="left", expand=True, fill="x", padx=1)
 
         row2 = ttk.Frame(action_frame)
         row2.pack(fill="x", pady=2)
-        ttk.Button(row2, text="Sum Selected (+)", command=self._sum_strategies).pack(side="left", expand=True, fill="x", padx=1)
-        ttk.Button(row2, text="Delete Selected", command=self._delete_strategies).pack(side="left", expand=True, fill="x", padx=1)
+        ttk.Button(row2, text="Sum Selected (+)", command=self._sum_strategies).pack(side="left", expand=True, fill="x",
+                                                                                     padx=1)
+        ttk.Button(row2, text="Delete Selected", command=self._delete_strategies).pack(side="left", expand=True,
+                                                                                       fill="x", padx=1)
 
     def _refresh_tickers(self) -> None:
         """
@@ -235,14 +241,14 @@ class StrategyCreationTab(ttk.Frame):
             self.combo_ticker.current(0)
 
     def _create_hybrid_row(
-            self, 
-            parent: tk.Widget, 
-            row_idx: int, 
-            col_idx: int, 
-            label_text: str, 
-            var_amount: tk.DoubleVar, 
-            var_type: tk.StringVar, 
-            type_options: List[str]
+            self,
+            parent: tk.Widget,
+            row_idx: int,
+            col_idx: int,
+            label_text: str,
+            var_amount: tk.DoubleVar,
+            var_type: tk.StringVar,
+            type_options: list[str]
             ) -> None:
         """
         Creates a labeled row with a value input and a unit dropdown.
@@ -254,17 +260,17 @@ class StrategyCreationTab(ttk.Frame):
             label_text (str): Label for the input.
             var_amount (tk.DoubleVar): Variable for the numeric input.
             var_type (tk.StringVar): Variable for the unit selection.
-            type_options (List[str]): List of options for the unit dropdown.
+            type_options (list[str]): List of options for the unit dropdown.
         """
 
         ttk.Label(parent, text=label_text).grid(row=row_idx, column=col_idx, padx=5, pady=5, sticky='w')
         container = ttk.Frame(parent)
-        container.grid(row=row_idx, column=col_idx+1, padx=5, pady=5, sticky='w')
-        
+        container.grid(row=row_idx, column=col_idx + 1, padx=5, pady=5, sticky='w')
+
         combo = ttk.Combobox(container, textvariable=var_type, values=type_options, state="readonly", width=8)
         combo.pack(side="left", padx=(0, 5))
         if not var_type.get(): combo.current(0)
-        
+
         ttk.Entry(container, textvariable=var_amount, width=10).pack(side="left")
 
     def _toggle_hold(self) -> None:
@@ -284,9 +290,9 @@ class StrategyCreationTab(ttk.Frame):
             self.entry_hold.config(state='disabled')
 
     def _toggle_threshold_inputs(
-            self, 
-            parent_frame: tk.Widget, 
-            row: int, 
+            self,
+            parent_frame: tk.Widget,
+            row: int,
             col: int
             ) -> None:
         """
@@ -309,9 +315,9 @@ class StrategyCreationTab(ttk.Frame):
             ttk.Entry(self.threshold_input_container, textvariable=self.var_threshold, width=15).pack(side="left")
 
     def _build_scrollable_target_list(
-            self, 
-            parent_frame: tk.Widget, 
-            row_idx: int, 
+            self,
+            parent_frame: tk.Widget,
+            row_idx: int,
             col_idx: int
             ) -> None:
         """
@@ -328,30 +334,30 @@ class StrategyCreationTab(ttk.Frame):
 
         container = ttk.LabelFrame(parent_frame, text="Target Prices (Dynamic List)", padding=5)
         container.grid(row=row_idx, column=col_idx, columnspan=4, sticky='nsew', padx=5, pady=5)
-        
+
         ctrl_frame = ttk.Frame(container)
         ctrl_frame.pack(side="top", fill="x", pady=(0, 5))
-        
+
         ttk.Button(ctrl_frame, text="+ Add Target", command=self._add_target_row).pack(side="left")
         ttk.Label(ctrl_frame, text="(Values must be > 0)").pack(side="left", padx=10)
 
         canvas = tk.Canvas(container, height=150)
         scrollbar = ttk.Scrollbar(container, orient="vertical", command=canvas.yview)
-        
+
         self.scroll_target_frame = ttk.Frame(canvas)
         self.scroll_target_frame.bind(
             "<Configure>",
             lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
         )
-        
+
         window_id = canvas.create_window((0, 0), window=self.scroll_target_frame, anchor="nw")
         canvas.bind("<Configure>", lambda e: canvas.itemconfig(window_id, width=e.width))
 
         canvas.configure(yscrollcommand=scrollbar.set)
-        
+
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
-        
+
         self.target_rows = []
         self._add_target_row()
 
@@ -362,13 +368,13 @@ class StrategyCreationTab(ttk.Frame):
 
         row_frame = ttk.Frame(self.scroll_target_frame)
         row_frame.pack(fill="x", pady=2, padx=2)
-        
+
         var_range = tk.BooleanVar(value=False)
         var_v1 = tk.DoubleVar(value=0.0)
         var_v2 = tk.DoubleVar(value=0.0)
-        
+
         input_container = ttk.Frame(row_frame)
-        
+
         def render_inputs():
             for w in input_container.winfo_children():
                 w.destroy()
@@ -382,16 +388,16 @@ class StrategyCreationTab(ttk.Frame):
 
         chk = ttk.Checkbutton(row_frame, text="Range", variable=var_range, command=render_inputs)
         chk.pack(side="left", padx=5)
-        
+
         input_container.pack(side="left", fill="x", expand=True)
         render_inputs()
-        
+
         def delete_row():
             row_frame.destroy()
             row_data['deleted'] = True
-            
+
         ttk.Button(row_frame, text="✖", width=3, command=delete_row).pack(side="right", padx=5)
-        
+
         row_data = {
             'frame': row_frame,
             'var_range': var_range,
@@ -402,7 +408,7 @@ class StrategyCreationTab(ttk.Frame):
         self.target_rows.append(row_data)
 
     def _on_type_changed(
-            self, 
+            self,
             event: tk.Event | None
             ) -> None:
         """
@@ -426,7 +432,7 @@ class StrategyCreationTab(ttk.Frame):
             self.manual_orders = []
             input_frame = ttk.Frame(self.specific_frame)
             input_frame.pack(fill="x", pady=5)
-            
+
             ttk.Label(input_frame, text="Date:").pack(side="left", padx=5)
             self.entry_man_date = ttk.Entry(input_frame, width=10)
             self.entry_man_date.pack(side="left", padx=2)
@@ -441,7 +447,7 @@ class StrategyCreationTab(ttk.Frame):
             self.entry_man_amount = ttk.Entry(input_frame, width=8)
             self.entry_man_amount.pack(side="left", padx=2)
             ttk.Button(input_frame, text="+", width=3, command=self._add_manual_order).pack(side="left", padx=5)
-            
+
             cols = ("Date", "Type", "Sizing", "Amount")
             self.tree_orders = ttk.Treeview(self.specific_frame, columns=cols, show='headings', height=4)
             for col in cols:
@@ -452,23 +458,24 @@ class StrategyCreationTab(ttk.Frame):
         else:
             r = 0
             if strat_name != "Bounded (SL/TP/Time)":
-                self._create_hybrid_row(self.specific_frame, r, 0, "Amount per Trade:", 
+                self._create_hybrid_row(self.specific_frame, r, 0, "Amount per Trade:",
                                         self.var_amount, self.var_sizing_type, self.SIZING_OPTIONS)
-                r += 1 
-            
+                r += 1
+
             if "Bounded" in strat_name:
                 hold_frame = ttk.Frame(self.specific_frame)
                 hold_frame.grid(row=r, column=2, columnspan=2, **grid_opts)
-                self.chk_hold = ttk.Checkbutton(hold_frame, text="Max Holding", variable=self.var_use_hold, command=self._toggle_hold)
+                self.chk_hold = ttk.Checkbutton(hold_frame, text="Max Holding", variable=self.var_use_hold,
+                                                command=self._toggle_hold)
                 self.chk_hold.pack(side="left", padx=(0, 5))
                 self.entry_hold = ttk.Entry(hold_frame, textvariable=self.var_hold, width=10)
                 self.entry_hold.pack(side="left")
                 self._toggle_hold()
                 r += 1
 
-                self._create_hybrid_row(self.specific_frame, r, 0, "Stop Loss:", 
+                self._create_hybrid_row(self.specific_frame, r, 0, "Stop Loss:",
                                         self.var_sl, self.var_sl_type, self.PRICE_OPTIONS)
-                self._create_hybrid_row(self.specific_frame, r, 2, "Take Profit:", 
+                self._create_hybrid_row(self.specific_frame, r, 2, "Take Profit:",
                                         self.var_tp, self.var_tp_type, self.PRICE_OPTIONS)
                 r += 1
 
@@ -486,14 +493,17 @@ class StrategyCreationTab(ttk.Frame):
                 ttk.Label(self.specific_frame, text=lbl_thresh).grid(row=r, column=2, **grid_opts)
                 thresh_complex_frame = ttk.Frame(self.specific_frame)
                 thresh_complex_frame.grid(row=r, column=3, **grid_opts)
-                self.chk_range = ttk.Checkbutton(thresh_complex_frame, text="Use Range", variable=self.var_use_range, command=lambda: self._toggle_threshold_inputs(thresh_complex_frame, 0, 0))
+                self.chk_range = ttk.Checkbutton(thresh_complex_frame, text="Use Range", variable=self.var_use_range,
+                                                 command=lambda: self._toggle_threshold_inputs(thresh_complex_frame, 0,
+                                                                                               0))
                 self.chk_range.pack(side="top", anchor='w')
                 self.threshold_input_container = ttk.Frame(thresh_complex_frame)
                 self.threshold_input_container.pack(side="top", anchor='w')
                 self._toggle_threshold_inputs(thresh_complex_frame, 0, 0)
                 if is_dynamic:
-                    ttk.Label(self.specific_frame, text="Lookback:").grid(row=r+1, column=0, **grid_opts)
-                    ttk.Entry(self.specific_frame, textvariable=self.var_lookback).grid(row=r+1, column=1, **grid_opts)
+                    ttk.Label(self.specific_frame, text="Lookback:").grid(row=r + 1, column=0, **grid_opts)
+                    ttk.Entry(self.specific_frame, textvariable=self.var_lookback).grid(row=r + 1, column=1,
+                                                                                        **grid_opts)
 
     def _add_manual_order(self) -> None:
         """
@@ -509,7 +519,7 @@ class StrategyCreationTab(ttk.Frame):
             self.tree_orders.insert("", "end", values=(dt, typ, sz, amt))
 
     def _map_sizing_to_backend(
-            self, 
+            self,
             ui_sizing_val: str
             ) -> str:
         """
@@ -522,17 +532,20 @@ class StrategyCreationTab(ttk.Frame):
             str: The backend identifier for the sizing type.
         """
 
-        if ui_sizing_val == "$": return 'static' 
-        elif ui_sizing_val == "% Initial": return 'initial'
-        elif ui_sizing_val == "% Current": return 'current'
+        if ui_sizing_val == "$":
+            return 'static'
+        elif ui_sizing_val == "% Initial":
+            return 'initial'
+        elif ui_sizing_val == "% Current":
+            return 'current'
         return 'static'
 
-    def _get_threshold_value(self) -> float | Tuple[float, float]:
+    def _get_threshold_value(self) -> float | tuple[float, float]:
         """
         Retrieves the threshold value, either as a single float or a range tuple.
 
         Returns:
-            float | Tuple[float, float]: The threshold value or range.
+            float | tuple[float, float]: The threshold value or range.
         """
 
         if self.var_use_range.get():
@@ -541,8 +554,8 @@ class StrategyCreationTab(ttk.Frame):
             return tuple(sorted((v1, v2)))
         else:
             return self.var_threshold.get()
-    
-    def _sanitize_sl_tp(self) -> Tuple[float, float]:
+
+    def _sanitize_sl_tp(self) -> tuple[float, float]:
         """
         Normalizes Stop Loss and Take Profit values.
 
@@ -551,7 +564,7 @@ class StrategyCreationTab(ttk.Frame):
         conversions (e.g., 5.0 becoming 0.05).
 
         Returns:
-            Tuple[float, float]: Validated (Stop Loss, Take Profit) values.
+            tuple[float, float]: Validated (Stop Loss, Take Profit) values.
         """
 
         raw_sl = self.var_sl.get()
@@ -586,7 +599,7 @@ class StrategyCreationTab(ttk.Frame):
             name = self.var_name.get()
             strat_key = self.var_strat_type.get()
 
-            sf = get_sf_from_sqlite(ticker, start=None, end=None) 
+            sf = get_sf_from_sqlite(ticker, start=None, end=None)
             if sf.empty:
                 messagebox.showerror("Error", f"No data found for ticker {ticker}.")
                 return
@@ -624,12 +637,12 @@ class StrategyCreationTab(ttk.Frame):
             traceback.print_exc()
             messagebox.showerror("Creation Error", f"Failed to create strategy:\n{str(e)}")
 
-    def _get_sizing_kwargs(self) -> Dict[str, Any]:
+    def _get_sizing_kwargs(self) -> dict[str, Any]:
         """
         Returns standard position sizing arguments from UI variables.
 
         Returns:
-            Dict[str, Any]: A dictionary containing amount per trade and sizing type.
+            dict[str, Any]: A dictionary containing amount per trade and sizing type.
         """
 
         return {
@@ -638,8 +651,8 @@ class StrategyCreationTab(ttk.Frame):
         }
 
     def _create_manual_strategy(
-            self, 
-            common_kwargs: Dict[str, Any]
+            self,
+            common_kwargs: dict[str, Any]
             ) -> Strategy:
         """
         Constructs a basic Strategy with pre-defined manual orders.
@@ -648,7 +661,7 @@ class StrategyCreationTab(ttk.Frame):
         if the requested date (e.g., Saturday) does not exist in the data.
 
         Args:
-            common_kwargs (Dict[str, Any]): Dictionary containing common
+            common_kwargs (dict[str, Any]): Dictionary containing common
                 strategy parameters (ticker, capital, dates, etc.).
 
         Returns:
@@ -660,17 +673,17 @@ class StrategyCreationTab(ttk.Frame):
         sf.index = pd.to_datetime(sf.index).strftime('%Y-%m-%d')
 
         first_market_date = sf.index[0]
-        
+
         processed_orders = []
         for order in self.manual_orders:
-            
+
             target_date = order['date']
             original_date = target_date
-            
+
             while target_date not in sf.index and target_date >= first_market_date:
                 dt_obj = datetime.strptime(target_date, "%Y-%m-%d") - timedelta(days=1)
                 target_date = dt_obj.strftime("%Y-%m-%d")
-            
+
             final_date = target_date if target_date in sf.index else original_date
 
             processed_orders.append({
@@ -679,19 +692,19 @@ class StrategyCreationTab(ttk.Frame):
                 'amount': order['amount'],
                 'override_sizing_type': self._map_sizing_to_backend(order['sizing'])
             })
-            
+
         common_kwargs['manual_orders'] = processed_orders
-        return Strategy(**common_kwargs)    
+        return Strategy(**common_kwargs)
 
     def _create_bounded_strategy(
-            self, 
-            common_kwargs: Dict[str, Any]
-            ) -> BoundedStrategy:
+            self,
+            common_kwargs: dict[str, Any]
+        ) -> BoundedStrategy:
         """
         Constructs a BoundedStrategy with SL, TP, and time limits.
 
         Args:
-            common_kwargs (Dict[str, Any]): Common strategy parameters.
+            common_kwargs (dict[str, Any]): Common strategy parameters.
 
         Returns:
             BoundedStrategy: The initialized bounded strategy.
@@ -705,16 +718,16 @@ class StrategyCreationTab(ttk.Frame):
         kwargs['sl_type'] = self.var_sl_type.get()
         kwargs['tp_type'] = self.var_tp_type.get()
         return BoundedStrategy(**kwargs)
-    
+
     def _create_multi_bounded_strategy(
-            self, 
-            common_kwargs: Dict[str, Any]
-            ) -> MultiBoundedStrategy | None:
+            self,
+            common_kwargs: dict[str, Any]
+        ) -> MultiBoundedStrategy | None:
         """
         Constructs a MultiBoundedStrategy with multiple static targets.
 
         Args:
-            common_kwargs (Dict[str, Any]): Common strategy parameters.
+            common_kwargs (dict[str, Any]): Common strategy parameters.
 
         Returns:
             MultiBoundedStrategy | None: The initialized strategy, or None if no valid targets are defined.
@@ -722,28 +735,28 @@ class StrategyCreationTab(ttk.Frame):
 
         kwargs = common_kwargs.copy()
         kwargs.update(self._get_sizing_kwargs())
-        
+
         targets = []
         for row in self.target_rows:
             if row.get('deleted', False):
                 continue
             is_range = row['var_range'].get()
             v1 = row['var_v1'].get()
-            
+
             if is_range:
                 v2 = row['var_v2'].get()
                 if v1 > 0 or v2 > 0:
-                     targets.append(tuple(sorted((v1, v2))))
+                    targets.append(tuple(sorted((v1, v2))))
             else:
                 if v1 > 0:
-                     targets.append(v1)
+                    targets.append(v1)
 
         print(f"DEBUG: Creating MultiBounded with Targets: {targets}")
 
         if not targets:
-             messagebox.showwarning("Warning", "No valid targets (>0) defined.")
-             return None
-        
+            messagebox.showwarning("Warning", "No valid targets (>0) defined.")
+            return None
+
         kwargs['target_prices'] = targets
         sl, tp = self._sanitize_sl_tp()
         kwargs['stop_loss'] = sl
@@ -751,18 +764,18 @@ class StrategyCreationTab(ttk.Frame):
         kwargs['sl_type'] = self.var_sl_type.get()
         kwargs['tp_type'] = self.var_tp_type.get()
         kwargs['max_holding_period'] = self.var_hold.get() if self.var_use_hold.get() else None
-        
+
         return MultiBoundedStrategy(**kwargs)
 
     def _create_multi_dynamic_bounded_strategy(
-            self, 
-            common_kwargs: Dict[str, Any]
+            self,
+            common_kwargs: dict[str, Any]
             ) -> MultiDynamicBoundedStrategy:
         """
         Constructs a MultiDynamicBoundedStrategy with momentum triggers.
 
         Args:
-            common_kwargs (Dict[str, Any]): Common strategy parameters.
+            common_kwargs (dict[str, Any]): Common strategy parameters.
 
         Returns:
             MultiDynamicBoundedStrategy: The initialized dynamic strategy.
@@ -781,14 +794,14 @@ class StrategyCreationTab(ttk.Frame):
         return MultiDynamicBoundedStrategy(**kwargs)
 
     def _create_buy_static_strategy(
-            self, 
-            common_kwargs: Dict[str, Any]
+            self,
+            common_kwargs: dict[str, Any]
             ) -> BuyStrategy:
         """
         Constructs a static BuyStrategy.
 
         Args:
-            common_kwargs (Dict[str, Any]): Common strategy parameters.
+            common_kwargs (dict[str, Any]): Common strategy parameters.
 
         Returns:
             BuyStrategy: The initialized static buy strategy.
@@ -796,18 +809,18 @@ class StrategyCreationTab(ttk.Frame):
 
         kwargs = common_kwargs.copy()
         kwargs.update(self._get_sizing_kwargs())
-        kwargs['threshold'] = self._get_threshold_value() 
+        kwargs['threshold'] = self._get_threshold_value()
         return BuyStrategy(**kwargs)
 
     def _create_buy_dynamic_strategy(
-            self, 
-            common_kwargs: Dict[str, Any]
+            self,
+            common_kwargs: dict[str, Any]
             ) -> DynamicBuyStrategy:
         """
         Constructs a dynamic BuyStrategy.
 
         Args:
-            common_kwargs (Dict[str, Any]): Common strategy parameters.
+            common_kwargs (dict[str, Any]): Common strategy parameters.
 
         Returns:
             DynamicBuyStrategy: The initialized dynamic buy strategy.
@@ -820,14 +833,14 @@ class StrategyCreationTab(ttk.Frame):
         return DynamicBuyStrategy(**kwargs)
 
     def _create_sell_static_strategy(
-            self, 
-            common_kwargs: Dict[str, Any]
+            self,
+            common_kwargs: dict[str, Any]
             ) -> SellStrategy:
         """
         Constructs a static SellStrategy.
 
         Args:
-            common_kwargs (Dict[str, Any]): Common strategy parameters.
+            common_kwargs (dict[str, Any]): Common strategy parameters.
 
         Returns:
             SellStrategy: The initialized static sell strategy.
@@ -839,14 +852,14 @@ class StrategyCreationTab(ttk.Frame):
         return SellStrategy(**kwargs)
 
     def _create_sell_dynamic_strategy(
-            self, 
-            common_kwargs: Dict[str, Any]
+            self,
+            common_kwargs: dict[str, Any]
             ) -> DynamicSellStrategy:
         """
         Constructs a dynamic SellStrategy.
 
         Args:
-            common_kwargs (Dict[str, Any]): Common strategy parameters.
+            common_kwargs (dict[str, Any]): Common strategy parameters.
 
         Returns:
             DynamicSellStrategy: The initialized dynamic sell strategy.
@@ -859,8 +872,8 @@ class StrategyCreationTab(ttk.Frame):
         return DynamicSellStrategy(**kwargs)
 
     def _add_strategy_to_list(
-            self, 
-            strategy_obj: Strategy, 
+            self,
+            strategy_obj: Strategy,
             checked: bool = True
             ) -> None:
         """
@@ -874,12 +887,14 @@ class StrategyCreationTab(ttk.Frame):
         strat_id = str(id(strategy_obj))
         check_symbol = "☑" if checked else "☐"
         ticker_val = getattr(strategy_obj, 'ticker', "Multi/Mix")
-        self.created_strategies_data.append({'id': strat_id, 'obj': strategy_obj, 'checked': checked, 'executed': False})
-        self.tree_list.insert("", "end", iid=strat_id, values=(check_symbol, strategy_obj.name, type(strategy_obj).__name__, ticker_val, "📈", "📄"))
+        self.created_strategies_data.append(
+            {'id': strat_id, 'obj': strategy_obj, 'checked': checked, 'executed': False})
+        self.tree_list.insert("", "end", iid=strat_id, values=(
+        check_symbol, strategy_obj.name, type(strategy_obj).__name__, ticker_val, "📈", "📄"))
         self._update_execution_buttons()
 
     def _on_tree_click(
-            self, 
+            self,
             event: tk.Event
             ) -> None:
         """
@@ -899,12 +914,15 @@ class StrategyCreationTab(ttk.Frame):
             col = self.tree_list.identify_column(event.x)
             row_id = self.tree_list.identify_row(event.y)
             if not row_id: return
-            if col == "#1": self._toggle_selection(row_id)
-            elif col == "#5": self._show_performance(row_id)
-            elif col == "#6": self._show_operations_window(row_id)
+            if col == "#1":
+                self._toggle_selection(row_id)
+            elif col == "#5":
+                self._show_performance(row_id)
+            elif col == "#6":
+                self._show_operations_window(row_id)
 
     def _toggle_selection(
-            self, 
+            self,
             row_id: str
             ) -> None:
         """
@@ -930,9 +948,9 @@ class StrategyCreationTab(ttk.Frame):
 
         selected_items = [item for item in self.created_strategies_data if item['checked']]
         if not selected_items:
-             self.btn_exec.config(state="disabled")
-             self.btn_exec_save.config(state="disabled")
-             return
+            self.btn_exec.config(state="disabled")
+            self.btn_exec_save.config(state="disabled")
+            return
         already_executed = any(item['executed'] for item in selected_items)
         if already_executed:
             self.btn_exec.config(state="disabled")
@@ -942,7 +960,7 @@ class StrategyCreationTab(ttk.Frame):
             self.btn_exec_save.config(state="normal")
 
     def _reset_strategy_state(
-            self, 
+            self,
             strategy_obj: Strategy
             ) -> None:
         """
@@ -957,31 +975,31 @@ class StrategyCreationTab(ttk.Frame):
         """
 
         is_multi = isinstance(strategy_obj, MultiStrategy)
-        
+
         if hasattr(strategy_obj, 'fiat'):
             if is_multi:
                 strategy_obj.fiat = 0.0
             else:
                 strategy_obj.fiat = strategy_obj.initial_capital
-        
+
         if hasattr(strategy_obj, 'stock'):
             strategy_obj.stock = 0.0
-            
+
         if hasattr(strategy_obj, 'closed'):
             strategy_obj.closed = False
-            
+
         if hasattr(strategy_obj, 'operations'):
             strategy_obj.operations = []
-            
+
         if hasattr(strategy_obj, 'profits'):
             strategy_obj.profits = None
-        
+
         if hasattr(strategy_obj, '_executed_manual_orders'):
             strategy_obj._executed_manual_orders = set()
 
         if hasattr(strategy_obj, 'finished_strategies'):
             if hasattr(strategy_obj, 'active_strategies'):
-                 strategy_obj.active_strategies.extend(strategy_obj.finished_strategies)
+                strategy_obj.active_strategies.extend(strategy_obj.finished_strategies)
             strategy_obj.finished_strategies = []
 
         if hasattr(strategy_obj, 'active_strategies'):
@@ -989,12 +1007,12 @@ class StrategyCreationTab(ttk.Frame):
                 self._reset_strategy_state(child)
 
         if isinstance(strategy_obj, (MultiBoundedStrategy, MultiDynamicBoundedStrategy)):
-             strategy_obj.active_strategies = []
-             strategy_obj.finished_strategies = []
-             strategy_obj.triggered_targets = set()
+            strategy_obj.active_strategies = []
+            strategy_obj.finished_strategies = []
+            strategy_obj.triggered_targets = set()
 
         if isinstance(strategy_obj, (BoundedStrategy, SellStrategy)):
-             strategy_obj.buy_all(strategy_obj.start, trigger="reset_entry")
+            strategy_obj.buy_all(strategy_obj.start, trigger="reset_entry")
 
     def _sum_strategies(self) -> None:
         """
@@ -1005,26 +1023,26 @@ class StrategyCreationTab(ttk.Frame):
         """
 
         selected_strategies = [item['obj'] for item in self.created_strategies_data if item['checked']]
-        
+
         if len(selected_strategies) < 2:
             messagebox.showwarning("Warning", "Select at least 2 strategies to sum.")
             return
-        
+
         new_name = simpledialog.askstring("Strategy Name", "Enter a name for the combined MultiStrategy:")
         if not new_name: return
 
         try:
             cloned_strategies = [copy.deepcopy(s) for s in selected_strategies]
-            
+
             for s in cloned_strategies:
                 self._reset_strategy_state(s)
 
             combined_strat = cloned_strategies[0]
             for s in cloned_strategies[1:]:
                 combined_strat = combined_strat + s
-            
+
             combined_strat.name = new_name
-            
+
             self._reset_strategy_state(combined_strat)
 
             self._add_strategy_to_list(combined_strat, checked=False)
@@ -1048,7 +1066,7 @@ class StrategyCreationTab(ttk.Frame):
         self._update_execution_buttons()
 
     def _execute_selected(
-            self, 
+            self,
             save: bool = False
             ) -> None:
         """
@@ -1063,7 +1081,7 @@ class StrategyCreationTab(ttk.Frame):
         """
 
         selected_items = [item for item in self.created_strategies_data if item['checked']]
-        
+
         if any(item['executed'] for item in selected_items):
             messagebox.showwarning("Blocked", "One or more selected strategies have already been executed.")
             return
@@ -1074,42 +1092,42 @@ class StrategyCreationTab(ttk.Frame):
 
         executed_count = 0
         try:
-            default_db_path = "data/strategies_results.db" 
-            
+            default_db_path = "data/strategies_results.db"
+
             for item in selected_items:
                 strat = item['obj']
                 self._reset_strategy_state(strat)
-                
-                if save: 
-                    strat.execute_and_save(db_route=default_db_path) 
-                else: 
+
+                if save:
+                    strat.execute_and_save(db_route=default_db_path)
+                else:
                     strat.execute()
-                
+
                 item['executed'] = True
-                
+
                 all_ops = self._collect_all_operations(strat)
-                
+
                 successful_ops = [op for op in all_ops if op.successful]
-                
+
                 n_total = len(all_ops)
                 n_success = len(successful_ops)
-                
+
                 ops_display = f"{n_success} ({n_total})" if n_total != n_success else f"{n_success}"
 
                 current_values = self.tree_list.item(item['id'], "values")
                 self.tree_list.item(
-                    item['id'], 
+                    item['id'],
                     values=(
-                        current_values[0], 
-                        current_values[1], 
-                        current_values[2], 
-                        current_values[3], 
-                        "✅",       
-                        ops_display 
+                        current_values[0],
+                        current_values[1],
+                        current_values[2],
+                        current_values[3],
+                        "✅",
+                        ops_display
                     )
-                )                
+                )
                 executed_count += 1
-            
+
             self._update_execution_buttons()
             action_lbl = "Executed & Saved" if save else "Executed"
             messagebox.showinfo("Execution", f"{action_lbl} {executed_count} strategies.")
@@ -1120,7 +1138,7 @@ class StrategyCreationTab(ttk.Frame):
             messagebox.showerror("Execution Error", f"Error during execution:\n{e}")
 
     def _get_strat_by_id(
-            self, 
+            self,
             row_id: str
             ) -> Strategy | None:
         """
@@ -1132,16 +1150,16 @@ class StrategyCreationTab(ttk.Frame):
         Returns:
             Strategy | None: The strategy object if found, else None.
         """
-        
+
         for item in self.created_strategies_data:
             if item['id'] == row_id: return item['obj']
         return None
 
     def _collect_all_operations(
-            self, 
-            strat: Strategy, 
-            visited: Set[int] | None = None
-            ) -> List[Any]:
+            self,
+            strat: Strategy,
+            visited: set[int] | None = None
+            ) -> list[Any]:
         """
         Recursively collects operations from a strategy and its nested children.
 
@@ -1150,36 +1168,36 @@ class StrategyCreationTab(ttk.Frame):
 
         Args:
             strat (Strategy): The strategy instance to inspect.
-            visited (Set[int] | None): Set of visited object IDs.
+            visited (set[int] | None): Set of visited object IDs.
 
         Returns:
-            List[Any]: A flattened list of all Operation objects found.
+            list[Any]: A flattened list of all Operation objects found.
         """
 
         if visited is None:
             visited = set()
-        
+
         if id(strat) in visited:
             return []
         visited.add(id(strat))
 
         ops = []
-        
-        if hasattr(strat, 'operations'): 
+
+        if hasattr(strat, 'operations'):
             ops.extend(strat.operations)
-        
+
         if hasattr(strat, 'active_strategies'):
-            for child in strat.active_strategies: 
+            for child in strat.active_strategies:
                 ops.extend(self._collect_all_operations(child, visited))
-        
+
         if hasattr(strat, 'finished_strategies'):
-            for child in strat.finished_strategies: 
+            for child in strat.finished_strategies:
                 ops.extend(self._collect_all_operations(child, visited))
-        
-        return ops    
+
+        return ops
 
     def _show_performance(
-            self, 
+            self,
             row_id: str
             ) -> None:
         """
@@ -1193,16 +1211,16 @@ class StrategyCreationTab(ttk.Frame):
         if not strat: return
         all_ops = self._collect_all_operations(strat)
         if not all_ops:
-             messagebox.showinfo("Performance", f"Strategy '{strat.name}' has no trades yet.\nDid you execute it?")
-             return
+            messagebox.showinfo("Performance", f"Strategy '{strat.name}' has no trades yet.\nDid you execute it?")
+            return
         n_trades = len(all_ops)
         final_cap = getattr(strat, 'fiat', 0.0)
         profit = getattr(strat, 'profits', 0.0) if strat.profits is not None else "N/A"
-        msg = f"Strategy: {strat.name}\nType: {type(strat).__name__}\n" + "-"*30 + f"\nTotal Ops: {n_trades}\nFinal Capital (Fiat): {final_cap:.2f}\nRealized Profit: {profit}\n"
+        msg = f"Strategy: {strat.name}\nType: {type(strat).__name__}\n" + "-" * 30 + f"\nTotal Ops: {n_trades}\nFinal Capital (Fiat): {final_cap:.2f}\nRealized Profit: {profit}\n"
         messagebox.showinfo("Performance Summary", msg)
 
     def _show_operations_window(
-            self, 
+            self,
             row_id: str
             ) -> None:
         """
@@ -1227,6 +1245,7 @@ class StrategyCreationTab(ttk.Frame):
         var_table_view = tk.BooleanVar(value=True)
         content_frame = ttk.Frame(top)
         content_frame.pack(side="top", fill="both", expand=True)
+
         def render_view():
             for widget in content_frame.winfo_children(): widget.destroy()
             if var_table_view.get():
@@ -1235,14 +1254,18 @@ class StrategyCreationTab(ttk.Frame):
                 for c in cols: tree.heading(c, text=c); tree.column(c, width=100)
                 vsb = ttk.Scrollbar(content_frame, orient="vertical", command=tree.yview)
                 tree.configure(yscroll=vsb.set)
-                tree.pack(side="left", fill="both", expand=True); vsb.pack(side="right", fill="y")
+                tree.pack(side="left", fill="both", expand=True);
+                vsb.pack(side="right", fill="y")
                 for op in all_ops:
-                    tree.insert("", "end", values=(op.date, op.type, op.ticker, f"{op.stock_price:.2f}", f"{op.cash_amount:.2f}", "Yes" if op.successful else "No"))
+                    tree.insert("", "end", values=(
+                    op.date, op.type, op.ticker, f"{op.stock_price:.2f}", f"{op.cash_amount:.2f}",
+                    "Yes" if op.successful else "No"))
             else:
                 txt = scrolledtext.ScrolledText(content_frame, width=90, height=20)
                 txt.pack(fill="both", expand=True)
-                for i, op in enumerate(all_ops): txt.insert("end", f"#{i+1}: {op.get_description()}\n{'-'*50}\n")
+                for i, op in enumerate(all_ops): txt.insert("end", f"#{i + 1}: {op.get_description()}\n{'-' * 50}\n")
                 txt.config(state="disabled")
+
         chk = ttk.Checkbutton(ctrl_frame, text="Table View / Text View", variable=var_table_view, command=render_view)
         chk.pack(side="left", padx=10)
         render_view()

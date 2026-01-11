@@ -188,7 +188,8 @@ class BoundedStrategy(Strategy):
                 "Date": date,
                 "Cash": round(self.fiat, 2),
                 "Stock_Value": round(invested_value, 2),
-                "Total_Equity": round(total_equity, 2)
+                "Total_Equity": round(total_equity, 2),
+                "Profit": round(total_equity / self.initial_capital, 4)
             })
 
         if not self.closed:

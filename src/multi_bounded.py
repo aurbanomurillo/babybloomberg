@@ -40,7 +40,7 @@ class MultiBoundedStrategy(Strategy):
             end: str,
             capital: float,
             sf: StockFrame,
-            target_prices: list[float|tuple[float,float]],
+            target_prices: list[float | tuple[float, float]],
             amount_per_trade: float,
             stop_loss: float,
             take_profit: float,
@@ -49,7 +49,7 @@ class MultiBoundedStrategy(Strategy):
             max_holding_period: str | None = None,
             sizing_type: str = "static",
             name: str = "undefined_multi_bounded_strategy"
-            ):
+            ) -> None:
         """Initializes the multi-bounded manager with static targets.
 
         Validates the start date and sorts the target prices to optimize triggering.
@@ -252,7 +252,7 @@ class MultiBoundedStrategy(Strategy):
     def close_trade(
             self,
             date: str,
-            trigger: str="parent_force_close"
+            trigger: str = "parent_force_close"
             ) -> None:
         """Forces the closure of all active child strategies.
 
@@ -282,7 +282,7 @@ class MultiBoundedStrategy(Strategy):
             list[str]: A chronological list of descriptions for every operation
                 performed by any child strategy (active or finished).
         """
-        
+
         all_strats = self.active_strategies + self.finished_strategies
         all_operations: list[Operation] = []
         for strat in all_strats:
@@ -317,6 +317,28 @@ class MultiBoundedStrategy(Strategy):
         except TradeNotClosed:
             print(f"Trade not closed.")
 
+    def get_current_capital(
+            self, 
+            date: str
+            ) -> float:
+        """Calculates the total consolidated equity of the manager.
+
+        Aggregates the unallocated cash ("fiat") held by the manager plus
+        the current total value (equity) of all active child strategies.
+
+        Args:
+            date (str): Date to evaluate (YYYY-MM-DD).
+
+        Returns:
+            float: Total consolidated portfolio value rounded to 2 decimal places.
+        """
+
+        active_children_capital = 0.0
+        for strat in self.active_strategies:
+            active_children_capital += strat.get_current_capital(date)
+            
+        return round(self.fiat + active_children_capital, 2)
+
 class MultiDynamicBoundedStrategy(MultiBoundedStrategy):
     """Manager strategy that spawns child trades based on dynamic price momentum.
 
@@ -346,10 +368,10 @@ class MultiDynamicBoundedStrategy(MultiBoundedStrategy):
             sl_type: str = "%",
             tp_type: str = "%",
             trigger_lookback: str = "1 day",
-            max_holding_period: str = None,
+            max_holding_period: str | None = None,
             sizing_type: str = "static",
             name: str = "undefined_multi_dynamic_bounded_strategy"
-            ):
+            ) -> None:
         """Initializes the dynamic multi-bounded manager.
 
         Args:
@@ -367,11 +389,11 @@ class MultiDynamicBoundedStrategy(MultiBoundedStrategy):
             sl_type (str, optional): SL type ("$" or "%"). Defaults to "%".
             tp_type (str, optional): TP type ("$" or "%"). Defaults to "%".
             trigger_lookback (str, optional): Lookback window. Defaults to "1 day".
-            max_holding_period (str, optional): Max child duration.
-            sizing_type (str, optional): Allocation method.
-            name (str, optional): Strategy name.
+            max_holding_period (str | None, optional): Max child duration. Defaults to None.
+            sizing_type (str, optional): Allocation method. Defaults to "static".
+            name (str, optional): Strategy name. Defaults to "undefined_multi_dynamic_bounded_strategy".
         """
-        
+
         super().__init__(
             ticker=ticker, 
             start=start, 
@@ -407,7 +429,7 @@ class MultiDynamicBoundedStrategy(MultiBoundedStrategy):
         Args:
             date (str): The current simulation date.
         """
-
+        
         current_price = self.sf.get_price_in(date)
         try:
             lookback_date_str = subtract_interval(date, self.trigger_lookback)
@@ -434,25 +456,3 @@ class MultiDynamicBoundedStrategy(MultiBoundedStrategy):
                     self._spawn_child(date, trigger_reason=f"Dip {round(pct_change*100, 2)}% in {self.trigger_lookback}")
                 else:
                     self._spawn_child(date, trigger_reason=f"Breakout {round(pct_change*100, 2)}% in {self.trigger_lookback}")
-
-    def get_current_capital(
-            self, 
-            date: str
-            ) -> float:
-        """Calculates the total consolidated equity of the manager.
-
-        Aggregates the unallocated cash ("fiat") held by the manager plus
-        the current total value (equity) of all active child strategies.
-
-        Args:
-            date (str): Date to evaluate (YYYY-MM-DD).
-
-        Returns:
-            float: Total consolidated portfolio value rounded to 2 decimal places.
-        """
-        
-        active_children_capital = 0
-        for strat in self.active_strategies:
-            active_children_capital += strat.get_current_capital(date)
-            
-        return round(self.fiat + active_children_capital, 2)

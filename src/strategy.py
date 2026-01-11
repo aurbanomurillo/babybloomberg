@@ -1,10 +1,22 @@
+"""
+Strategy module for the trading simulation system.
+
+This module defines the base class `Strategy`, which serves as the foundation for
+all specific trading strategies within the system. It handles the core logic for
+order execution, position management, capital tracking, and performance logging.
+It is designed to be subclassed, where derived classes implement specific entry
+and exit logic while relying on this base class for state management and
+execution mechanics.
+"""
+
+from typing import List, Dict
+import pandas as pd
 from rich.progress import track
 from src.exceptions import *
 from src.database import *
 from src.processing import *
 from src.operations_manager import *
 from src.stockframe_manager import *
-from typing import List, Dict
 
 class Strategy:
     """Base class representing a trading strategy.
@@ -30,16 +42,16 @@ class Strategy:
     """
 
     def __init__(
-            self,
-            ticker: str,
-            start: str,
-            end: str,
-            capital: float,
-            sf: StockFrame,
-            sizing_type: str = "static",
-            manual_orders: List[Dict] | None = None,
-            name: str = "undefined_strategy"
-            ) -> None:
+        self,
+        ticker: str,
+        start: str,
+        end: str,
+        capital: float,
+        sf: StockFrame,
+        sizing_type: str = "static",
+        manual_orders: List[Dict] | None = None,
+        name: str = "undefined_strategy"
+    ) -> None:
         """Initializes the strategy state.
 
         Args:
@@ -58,6 +70,7 @@ class Strategy:
         Raises:
             ValueError: If `sizing_type` is not one of the recognized options.
         """
+
         self.name: str = name
         self.ticker: str = ticker
         self.start: str = start
@@ -69,22 +82,22 @@ class Strategy:
         self.profits: float | None = None
         self.operations: List[Operation] = []
         self.closed: bool = False
-        
+
         if manual_orders is not None:
-            self.manual_orders_config: List[Dict] = manual_orders 
+            self.manual_orders_config: List[Dict] = manual_orders
         else:
-            self.manual_orders_config: List[Dict] = [] 
+            self.manual_orders_config: List[Dict] = []
 
         if sizing_type in ["static", "initial", "current"]:
             self.sizing_type: str = sizing_type
         else:
             raise ValueError(f"Sizing type '{sizing_type}' not recognized.")
-        
+
     def _calculate_order_amount(
-            self, 
-            quantity: float, 
-            override_sizing_type: str | None = None
-            ) -> float:
+        self,
+        quantity: float,
+        override_sizing_type: str | None = None
+    ) -> float:
         """Calculates the cash value of an order based on the sizing type.
 
         Internal helper to translate a generic quantity input into a specific
@@ -101,6 +114,7 @@ class Strategy:
         Raises:
             ValueError: If the sizing type is invalid.
         """
+
         if override_sizing_type is None:
             current_sizing = self.sizing_type
         else:
@@ -116,18 +130,18 @@ class Strategy:
             raise ValueError(f"Sizing type '{current_sizing}' not recognized.")
 
     def buy(
-            self,
-            quantity: float,
-            date: str,
-            trigger: str = "manual",
-            override_sizing_type: str | None = None
-            ) -> None:
+        self,
+        quantity: float,
+        date: str,
+        trigger: str = "manual",
+        override_sizing_type: str | None = None
+    ) -> None:
         """Executes a buy order (Long entry), robust to missing price data.
 
-        Attempts to retrieve the asset price for the specific date. If data is 
+        Attempts to retrieve the asset price for the specific date. If data is
         unavailable, it automatically falls back to the last valid historical price.
         Calculates the required cash based on the quantity and sizing type.
-        If sufficient funds are available, converts cash to stock and logs a 
+        If sufficient funds are available, converts cash to stock and logs a
         successful operation.
 
         Args:
@@ -140,16 +154,17 @@ class Strategy:
         Raises:
             NotEnoughCashError: If `fiat` is less than the calculated order cost.
         """
+
         stock_price = self.sf.get_price_in(date)
         if stock_price is None:
             stock_price = self.sf.get_last_valid_price(date)
-        
+
         if stock_price is None:
             print(f"Error in buy ({self.name}): No price found for {date}.")
             return
 
-        cash_amount = round(self._calculate_order_amount(quantity, override_sizing_type=override_sizing_type),2)
-        
+        cash_amount = round(self._calculate_order_amount(quantity, override_sizing_type=override_sizing_type), 2)
+
         if cash_amount >= 0.01:
             if self.fiat - cash_amount > -0.01:
                 self.fiat = round(self.fiat - cash_amount, 2)
@@ -158,12 +173,12 @@ class Strategy:
             else:
                 self.operations.append(Operation("buy", cash_amount, self.ticker, stock_price, False, date, trigger))
                 raise NotEnoughCashError
-    
+
     def buy_all(
-            self,
-            date: str,
-            trigger: str = "manual"
-            ) -> None:
+        self,
+        date: str,
+        trigger: str = "manual"
+    ) -> None:
         """Invests all available capital into the asset.
 
         A convenience method that triggers a "static" buy using the current
@@ -173,10 +188,11 @@ class Strategy:
             date (str): Date of execution (YYYY-MM-DD).
             trigger (str, optional): Reason for the trade. Defaults to "manual".
         """
+
         stock_price = self.sf.get_price_in(date)
         if stock_price is None:
             stock_price = self.sf.get_last_valid_price(date)
-        
+
         if stock_price is None:
             print(f"Error in buy_all ({self.name}): No price found for {date}.")
             return
@@ -184,24 +200,24 @@ class Strategy:
         if self.fiat > 0:
             cash_spent = self.fiat
             stock_gained = float(round(cash_spent / stock_price, 8))
-            
+
             self.fiat = 0.0
             self.stock += stock_gained
-            
+
             self.operations.append(Operation("buy", cash_spent, self.ticker, stock_price, True, date, trigger))
 
     def sell(
-            self,
-            quantity: float,
-            date: str,
-            trigger: str = "manual",
-            override_sizing_type: str | None = None
-            ) -> None:
+        self,
+        quantity: float,
+        date: str,
+        trigger: str = "manual",
+        override_sizing_type: str | None = None
+    ) -> None:
         """Executes a sell order (Long exit), robust to missing price data.
 
-        Attempts to retrieve the asset price for the specific date. If data is 
+        Attempts to retrieve the asset price for the specific date. If data is
         unavailable, it automatically falls back to the last valid historical price.
-        Calculates the cash value of the stock to be sold. If sufficient stock is owned, 
+        Calculates the cash value of the stock to be sold. If sufficient stock is owned,
         converts stock to cash and logs a successful operation.
 
         Args:
@@ -214,6 +230,7 @@ class Strategy:
         Raises:
             NotEnoughStockError: If `stock` holdings are less than the sell amount.
         """
+
         if override_sizing_type is None:
             current_sizing = self.sizing_type
         else:
@@ -222,7 +239,7 @@ class Strategy:
         stock_price = self.sf.get_price_in(date)
         if stock_price is None:
             stock_price = self.sf.get_last_valid_price(date)
-        
+
         if stock_price is None:
             print(f"Error in sell ({self.name}): No price found for {date}.")
             return
@@ -230,13 +247,13 @@ class Strategy:
         if current_sizing == "initial":
             cash_amount = round(self.stock * stock_price * quantity, 2)
         elif current_sizing == "current":
-            cash_amount = round(self._calculate_order_amount(quantity, override_sizing_type=override_sizing_type),2)
+            cash_amount = round(self._calculate_order_amount(quantity, override_sizing_type=override_sizing_type), 2)
         else:
-            cash_amount = round(self._calculate_order_amount(quantity, override_sizing_type=override_sizing_type),2)
-        
+            cash_amount = round(self._calculate_order_amount(quantity, override_sizing_type=override_sizing_type), 2)
+
         if cash_amount >= 0.01:
             stock_amount = float(round(cash_amount / stock_price, 8))
-            
+
             if self.stock - stock_amount >= -0.000001:
                 self.fiat = round(float(self.fiat + cash_amount), 2)
                 self.stock -= stock_amount
@@ -244,42 +261,43 @@ class Strategy:
             else:
                 self.operations.append(Operation("sell", cash_amount, self.ticker, stock_price, False, date, trigger))
                 raise NotEnoughStockError
-        
+
     def sell_all(
-            self,
-            date: str,
-            trigger: str = "manual"
-            ) -> None:
+        self,
+        date: str,
+        trigger: str = "manual"
+    ) -> None:
         """Liquidates the entire position (Stock -> Cash), robust to missing price data.
 
-        Attempts to retrieve the asset price for the specific date. If data is 
-        unavailable, it automatically falls back to the last valid historical price 
+        Attempts to retrieve the asset price for the specific date. If data is
+        unavailable, it automatically falls back to the last valid historical price
         to calculate the total liquidation value.
 
         Args:
             date (str): Date of execution (YYYY-MM-DD).
             trigger (str, optional): Reason for the trade. Defaults to "manual".
         """
+
         stock_price = self.sf.get_price_in(date)
         if stock_price is None:
             stock_price = self.sf.get_last_valid_price(date)
-        
+
         if stock_price is None:
-            return 
+            return
 
         if self.stock > 0:
             cash_value = round(self.stock * stock_price, 2)
             self.fiat = round(self.fiat + cash_value, 2)
-            
+
             self.stock = 0.0
-            
+
             self.operations.append(Operation("sell", cash_value, self.ticker, stock_price, True, date, trigger))
 
     def close_trade(
-            self,
-            date: str,
-            trigger: str = "force_close"
-            ) -> None:
+        self,
+        date: str,
+        trigger: str = "force_close"
+    ) -> None:
         """Forces the closure of the trading position.
 
         Sells all holdings, calculates the final profits relative to the initial
@@ -290,11 +308,12 @@ class Strategy:
             date (str): Date of closure (YYYY-MM-DD).
             trigger (str, optional): Reason for closure. Defaults to "force_close".
         """
+
         if not self.closed:
-            self.sell_all(date, trigger = trigger)
+            self.sell_all(date, trigger=trigger)
             self.profits = round(self.fiat - self.initial_capital, 2)
             self.closed = True
-    
+
     def get_profit(self) -> float:
         """Retrieves the absolute profit realized by the strategy.
 
@@ -304,17 +323,19 @@ class Strategy:
         Raises:
             TradeNotClosed: If called before `close_trade` has been executed.
         """
+
         if self.profits is not None:
             return self.profits
         else:
             raise TradeNotClosed
-    
+
     def get_returns(self) -> float:
         """Calculates the Return on Investment (ROI).
 
         Returns:
             float: The returns expressed as a decimal (e.g., 0.15 for 15%).
         """
+
         return round(self.profits / self.initial_capital, 8)
 
     def print_performance(self) -> None:
@@ -323,6 +344,7 @@ class Strategy:
         Displays the number of operations, initial and final capital, absolute
         profit, and percentage returns to the console.
         """
+
         try:
             print(f"-" * 50)
             print(f" --- Performance of {self.name} ---")
@@ -337,10 +359,10 @@ class Strategy:
 
     def print_operations(self) -> None:
         """Prints the description of every operation recorded in the log."""
+
         print(f"--- Operations Detail for {self.name} ({len(self.operations)} operations) ---")
         for operation in self.operations:
             print(operation.get_description())
-    
 
     def get_successful_operations(self) -> List[str]:
         """Returns a list of descriptions for all successfully executed trades.
@@ -348,18 +370,20 @@ class Strategy:
         Returns:
             List[str]: A list of strings describing successful operations.
         """
+
         successful_operations = []
         for operation in self.operations:
             if operation.successful:
                 successful_operations.append(operation.get_description())
         return successful_operations
-            
+
     def get_failed_operations(self) -> List[str]:
         """Returns a list of descriptions for trades rejected due to insufficient funds/stock.
 
         Returns:
             List[str]: A list of strings describing failed operations.
         """
+
         unsuccessful_operations = []
         for operation in self.operations:
             if not operation.successful:
@@ -372,15 +396,16 @@ class Strategy:
         Returns:
             List[str]: A list of strings describing all operations.
         """
+
         operations = []
         for operation in self.operations:
             operations.append(operation.get_description())
         return operations
-    
+
     def __add__(
-            self, 
-            strat2: "Strategy"
-            ) -> "Strategy":
+        self,
+        strat2: "Strategy"
+    ) -> "Strategy":
         """Overloads the `+` operator to combine strategies.
 
         Allows creating a `MultiStrategy` container by simply adding two strategy
@@ -393,36 +418,38 @@ class Strategy:
         Returns:
             Strategy: A new container (MultiStrategy) holding both strategies.
         """
+
         from src.multi_strategy import MultiStrategy
-        
+
         def get_sub_strats(s):
             if isinstance(s, MultiStrategy):
                 return s.active_strategies
             return [s]
-        
+
         combined_strats = get_sub_strats(self) + get_sub_strats(strat2)
         return MultiStrategy(combined_strats)
 
     def set_name(
-            self, 
-            name: str
-            ) -> None:
+        self,
+        name: str
+    ) -> None:
         """Updates the identifier name of the strategy.
 
         Args:
             name (str): The new name for the strategy.
         """
+
         self.name = name
-    
+
     def get_current_capital(
-        self, 
+        self,
         date: str
-        ) -> float:
+    ) -> float:
         """Calculates the total equity (Cash + Stock Value) on a specific date.
 
         Retrieves the asset price for the given date to determine the market value
-        of held stocks. If price data is unavailable, it utilizes the last valid 
-        price to prevent artificial equity drops. If no valid prior price exists, 
+        of held stocks. If price data is unavailable, it utilizes the last valid
+        price to prevent artificial equity drops. If no valid prior price exists,
         it returns only the cash component.
 
         Args:
@@ -431,21 +458,22 @@ class Strategy:
         Returns:
             float: Total portfolio value rounded to 2 decimal places.
         """
+
         price = self.sf.get_price_in(date)
-        
+
         if price is None:
             price = self.sf.get_last_valid_price(date)
-            
+
         if price is None:
             return self.fiat
-            
+
         stock_value = self.stock * price
         return round(self.fiat + stock_value, 2)
 
     def check_and_do(
-            self, 
-            date: str
-            ) -> None:
+        self,
+        date: str
+    ) -> None:
         """Executes manual orders configured for the specific date.
 
         Iterates through the manual orders configuration list and executes any order
@@ -454,6 +482,7 @@ class Strategy:
         Args:
             date (str): The current simulation date (YYYY-MM-DD).
         """
+
         for order in self.manual_orders_config:
             if order['date'] == date:
                 order_type = order['type']
@@ -478,27 +507,29 @@ class Strategy:
         Iterates day-by-day calling `check_and_do` to process manual orders or
         any other logic defined in subclasses. Closes the trade at the end.
         """
+
         for date in track(self.sf.index, description=f"Executing {self.name}..."):
             if self.start <= date <= self.end:
                 self.check_and_do(date)
-        
+
         self.close_trade(self.end)
 
     def execute_and_save(
-            self,
-            db_route: str
-            ) -> None:
+        self,
+        db_route: str
+    ) -> None:
         """Executes the strategy simulation and persists daily performance metrics.
 
         Runs the strategy day-by-day utilizing the valid trading days found in
-        the stockframe index within the configured date range. It handles 
-        `NotEnoughStockError` by immediately closing the trade. Finally, the 
+        the stockframe index within the configured date range. It handles
+        `NotEnoughStockError` by immediately closing the trade. Finally, the
         performance history is saved to the specified database.
 
         Args:
             db_route (str): The file path to the SQLite database where the performance
                 table (named after the strategy) will be saved.
         """
+        
         valid_dates = [d for d in self.sf.index if self.start <= d <= self.end]
         performance_log = []
 
@@ -520,11 +551,12 @@ class Strategy:
                 "Date": date,
                 "Cash": round(self.fiat, 2),
                 "Stock_Value": round(invested_value, 2),
-                "Total_Equity": round(total_equity, 2)
+                "Total_Equity": round(total_equity, 2),
+                "Profit": round(total_equity / self.initial_capital, 4)
             })
 
         self.close_trade(self.end)
-        
+
         if len(performance_log) > 0:
             df_perf = pd.DataFrame(performance_log)
             df_perf.set_index("Date", inplace=True)

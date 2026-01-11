@@ -22,7 +22,7 @@ def get_sp500_tickers() -> list[str]:
         list[str]: An alphabetically sorted list of ticker symbols. Returns
             an empty list if the request fails or parsing errors occur.
     """
-    
+
     url = 'https://en.wikipedia.org/wiki/List_of_S%26P_500_companies'
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
@@ -50,7 +50,7 @@ def download_new_data(
         ticker: str,
         start_date: str | None = None,
         end_date: str | None = None
-) -> pd.DataFrame:
+        ) -> pd.DataFrame:
     """Downloads historical price data for a specific ticker via Yahoo Finance.
 
     This function acts as a wrapper for `yfinance.download`. It manages the

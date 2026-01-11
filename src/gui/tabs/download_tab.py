@@ -25,7 +25,7 @@ class DownloadTab(ttk.Frame):
     """
 
     def __init__(
-            self, 
+            self,
             parent: tk.Widget
             ) -> None:
         """Initializes the download tab UI components.
@@ -34,7 +34,7 @@ class DownloadTab(ttk.Frame):
             parent (tk.Widget): The parent widget (typically a `ttk.Notebook`) to
                 which this frame belongs.
         """
-        
+
         super().__init__(parent)
 
         lbl_info: ttk.Label = ttk.Label(self, text="Enter Tickers to Download (separated by space or comma):", font=("Arial", 10, "bold"))
@@ -98,20 +98,20 @@ class DownloadTab(ttk.Frame):
         for i, ticker in enumerate(tickers):
 
             self.after(0, lambda t=ticker: self.lbl_status.config(text=f"Downloading {t}... ({i+1}/{len(tickers)})", foreground="blue"))
-            
+
             try:
                 load_stock(ticker)
                 success_count += 1
             except Exception as e:
                 errors.append(f"{ticker}: {str(e)}")
-            
+
             self.after(0, lambda v=i+1: self.progress.configure(value=v))
-        
+
         self.after(0, self._finish_download, success_count, errors)
 
     def _finish_download(
-            self, 
-            count: int, 
+            self,
+            count: int,
             errors: list[str]
             ) -> None:
         """Updates the UI after the download thread completes.
@@ -123,10 +123,10 @@ class DownloadTab(ttk.Frame):
             count (int): The number of successfully updated tickers.
             errors (list[str]): A list of error messages encountered during the process.
         """
-        
+
         self.btn_download.config(state="normal")
         self.progress.pack_forget()
-        
+
         if not errors:
             self.lbl_status.config(text=f"Success! {count} tickers updated.", foreground="green")
             messagebox.showinfo("Complete", f"Successfully updated {count} tickers.")

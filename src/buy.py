@@ -8,7 +8,6 @@ percentage variations (dips or breakouts) relative to a historical timeframe.
 
 from src.strategy import *
 from src.stockframe_manager import *
-from typing import Tuple, Union
 
 class BuyStrategy(Strategy):
     """Implements a static buy strategy based on absolute price levels.
@@ -33,7 +32,7 @@ class BuyStrategy(Strategy):
             capital: float,
             sf: StockFrame,
             amount_per_trade: float,
-            threshold: Union[Tuple[float, float], float],
+            threshold: tuple[float, float] | float,
             sizing_type: str = "static",
             name: str = "undefined_static_buy_strategy"
             ) -> None:
@@ -46,17 +45,18 @@ class BuyStrategy(Strategy):
             capital (float): The initial capital available for the strategy.
             sf (StockFrame): The data manager containing price history.
             amount_per_trade (float): The monetary amount to invest per buy signal.
-            threshold (Union[Tuple[float, float], float]): The price trigger.
-                - If float: The exact price at which the buy will be triggered.
-                - If tuple: An inclusive range (min, max) within which the buy
-                  will be triggered.
+            threshold (tuple[float, float] | float): The price trigger.
+                If float: The exact price at which the buy will be triggered.
+                If tuple: An inclusive range (min, max) within which the buy
+                will be triggered.
             sizing_type (str, optional): The method for position sizing (e.g.,
                 "static", "percentage"). Defaults to "static".
             name (str, optional): A unique identifier for the strategy.
                 Defaults to "undefined_static_buy_strategy".
         """
+
         super().__init__(ticker, start, end, capital, sf, sizing_type=sizing_type, name=name)
-        self.threshold: Union[Tuple[float, float], float] = threshold
+        self.threshold: tuple[float, float] | float = threshold
         self.amount_per_trade: float = amount_per_trade
 
     def check_and_do(
@@ -66,9 +66,8 @@ class BuyStrategy(Strategy):
         """Evaluates market conditions against the configured static threshold.
 
         Compares the asset's price on the given date with the `threshold`.
-        - If `threshold` is a tuple, checks if the price is within [min, max].
-        - If `threshold` is a float, checks for strict equality with the price.
-
+        If the threshold is a tuple, it checks if the price is within [min, max].
+        If the threshold is a float, it checks for strict equality with the price.
         If the condition is met, a buy order is executed.
 
         Args:
@@ -78,6 +77,7 @@ class BuyStrategy(Strategy):
             StopChecking: If the current date has reached or exceeded the
                 strategy's end date, signaling the loop to terminate.
         """
+
         super().check_and_do(date)
         current_price = self.sf.get_price_in(date)
         
@@ -104,6 +104,7 @@ class BuyStrategy(Strategy):
         "Buy All" operation before terminating. It ensures any open position
         is closed upon reaching the simulation end date.
         """
+
         for date in track(self.sf.index, description=f"Executing {self.name}..."):
             try:
                 self.check_and_do(date)
@@ -131,6 +132,7 @@ class BuyStrategy(Strategy):
             db_route (str): The file path to the SQLite database where the
                 performance table will be saved.
         """
+
         valid_dates = [d for d in self.sf.index if self.start <= d <= self.end]
         performance_log = []
 
@@ -152,7 +154,8 @@ class BuyStrategy(Strategy):
                 "Date": date,
                 "Cash": round(self.fiat, 2),
                 "Stock_Value": round(invested_value, 2),
-                "Total_Equity": round(total_equity, 2)
+                "Total_Equity": round(total_equity, 2),
+                "Profit": round(total_equity / self.initial_capital, 4)
             })
 
         self.close_trade(self.end)
@@ -188,7 +191,7 @@ class DynamicBuyStrategy(BuyStrategy):
             capital: float,
             sf: StockFrame,
             amount_per_trade: float,
-            threshold: Union[Tuple[float, float], float],
+            threshold: tuple[float, float] | float,
             trigger_lookback: str = "1 day",
             sizing_type: str = "static",
             name: str = "undefined_dynamic_buy_strategy"
@@ -202,10 +205,10 @@ class DynamicBuyStrategy(BuyStrategy):
             capital (float): Initial capital.
             sf (StockFrame): Data manager.
             amount_per_trade (float): Capital to invest per trade.
-            threshold (Union[Tuple[float, float], float]): The percentage variation trigger.
-                - Float > 0: Buy on breakout (e.g., 0.10 for +10%).
-                - Float < 0: Buy on dip (e.g., -0.05 for -5%).
-                - Tuple: Buy if the relative change falls within the range.
+            threshold (tuple[float, float] | float): The percentage variation trigger.
+                If float > 0: Buy on breakout (e.g., 0.10 for +10%).
+                If float < 0: Buy on dip (e.g., -0.05 for -5%).
+                If tuple: Buy if the relative change falls within the range.
             trigger_lookback (str, optional): The lookback period string.
                 Defaults to "1 day".
             sizing_type (str, optional): Position sizing method. Defaults to "static".
@@ -215,6 +218,7 @@ class DynamicBuyStrategy(BuyStrategy):
             NotValidIntervalError: If any threshold value implies a drop of 100%
                 or more (<= -1.0), which is invalid for asset prices.
         """
+
         if isinstance(threshold, float):
             if threshold <= -1:
                 raise NotValidIntervalError("Threshold cannot be -100% or lower.")
@@ -238,10 +242,10 @@ class DynamicBuyStrategy(BuyStrategy):
         """Evaluates price variation relative to the historical lookback period.
 
         Calculates a reference price from `trigger_lookback` ago.
-        - If `threshold` > 0: Buys if current price >= reference * (1 + threshold).
-        - If `threshold` < 0: Buys if current price <= reference * (1 + threshold).
-        - If `threshold` is a tuple: Buys if the theoretical target price falls
-          within the calculated range.
+        If threshold > 0, it buys if the price has risen by at least X%.
+        If threshold < 0, it buys if the price has dropped by at least X%.
+        If threshold is a tuple, it buys if the theoretical target price falls
+        within the calculated range.
 
         Args:
             date (str): The current simulation date (YYYY-MM-DD).
@@ -249,6 +253,7 @@ class DynamicBuyStrategy(BuyStrategy):
         Raises:
             StopChecking: If the simulation end date is reached.
         """
+
         current_price = self.sf.get_price_in(date)
         reference_price = self.sf.get_last_valid_price(subtract_interval(date, self.trigger_lookback))
 

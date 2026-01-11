@@ -31,7 +31,7 @@ def save_to_db(
         db_name (str, optional): The file path to the SQLite database.
             Defaults to 'data/market_data.db'.
     """
-
+    
     with sqlite3.connect(db_name) as connection:
         df.to_sql(table_name, connection, if_exists='append', index=True)
         connection.commit()
@@ -41,8 +41,8 @@ def load_stock(ticker: str) -> None:
 
     Checks the last available date in the local database for the given ticker.
     If data exists, it downloads only the differential (delta) since that date.
-    If no data exists, it downloads the full history. The new data is cleaned
-    and saved to the database.
+    If no data exists, it downloads the full history. The new data is cleaned,
+    the profit column is calculated, and it is saved to the database.
 
     Args:
         ticker (str): The symbol of the asset to update (e.g., "AAPL").
@@ -58,6 +58,14 @@ def load_stock(ticker: str) -> None:
             return None
 
         clean_data = round_price(data)
+        
+        if not clean_data.empty:
+            initial_price = clean_data['Close'].iloc[0]
+            if initial_price != 0:
+                clean_data['Profit'] = clean_data['Close'] / initial_price
+            else:
+                clean_data['Profit'] = 0.0
+
         save_to_db(ticker, clean_data)
 
     except Exception as e:
@@ -94,6 +102,7 @@ def get_first_date(
         str | None: The date in "YYYY-MM-DD" format, or None if no data
             exists or a connection error occurs.
     """
+
     try:
         if isinstance(ticker, str):
             df = get_sf_from_sqlite(ticker, db_path)
@@ -123,6 +132,7 @@ def get_last_date(
         str | None: The date in "YYYY-MM-DD" format, or None if no data
             exists or a connection error occurs.
     """
+
     try:
         if isinstance(ticker, str):
             df = get_sf_from_sqlite(ticker, db_path)
@@ -174,7 +184,7 @@ def get_sf_from_sqlite(
         if end:
             df = df[df.index <= end]
        
-    cols_to_fix = ['Open', 'High', 'Low', 'Close', 'Adj Close']
+    cols_to_fix = ['Open', 'High', 'Low', 'Close', 'Adj Close', 'Profit']
     for col in cols_to_fix:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0.0).astype(float)

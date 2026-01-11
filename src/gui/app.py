@@ -43,7 +43,7 @@ class BabyBloombergApp(tk.Tk):
         super().__init__()
 
         self.title("BabyBloomberg Terminal")
-        self.geometry("1200x800") 
+        self.geometry("1200x800")
         self.minsize(800, 600)
 
         self.protocol("WM_DELETE_WINDOW", self.on_close)
@@ -85,5 +85,5 @@ class BabyBloombergApp(tk.Tk):
 
         This method blocks execution until the window is closed by the user.
         """
-        
+
         self.mainloop()

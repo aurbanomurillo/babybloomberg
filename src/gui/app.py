@@ -8,7 +8,7 @@ navigation tabs (Download, Visualization, and Strategy Creator).
 import tkinter as tk
 from tkinter import ttk
 import os
-from src.gui.tabs.market_tab import VisualizationTab
+from src.gui.tabs.visualization_tab import VisualizationTab
 from src.gui.tabs.download_tab import DownloadTab
 from src.gui.tabs.strategy_creation_tab import StrategyCreationTab
 

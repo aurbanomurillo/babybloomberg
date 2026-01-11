@@ -21,7 +21,7 @@ class BoundedStrategy(Strategy):
     Attributes:
         stop_loss (float): The calculated absolute price level to cut losses.
         take_profit (float): The calculated absolute price level to take profits.
-        max_holding_period (str): Maximum duration to hold the position
+        max_holding_period (str | None): Maximum duration to hold the position
             (e.g., "30 days").
         entry_price (float): The price at which the initial entry was executed.
     """
@@ -37,7 +37,7 @@ class BoundedStrategy(Strategy):
         take_profit: float,
         sl_type: str = "$",
         tp_type: str = "$",
-        max_holding_period: str = None,
+        max_holding_period: str | None = None,
         name: str = "undefined_bounded_strategy"
         ) -> None:
         """Initializes the strategy and executes the immediate market entry.
@@ -65,12 +65,12 @@ class BoundedStrategy(Strategy):
                 Accepts "$" (absolute amount) or "%" (percentage). Defaults to "$".
             tp_type (str, optional): The type of Take Profit calculation.
                 Accepts "$" (absolute amount) or "%" (percentage). Defaults to "$".
-            max_holding_period (str, optional): The maximum duration to
+            max_holding_period (str | None, optional): The maximum duration to
                 hold the position (e.g., "30 days"). Defaults to None.
             name (str, optional): A unique identifier for the strategy.
                 Defaults to "undefined_bounded_strategy".
         """
-
+        
         super().__init__(ticker, start, end, capital, sf, name=name)
 
         if not self.start in self.sf.index.tolist():
@@ -95,7 +95,7 @@ class BoundedStrategy(Strategy):
         else:
             self.take_profit: float = self.entry_price + take_profit
 
-        self.max_holding_period: str = max_holding_period
+        self.max_holding_period: str | None = max_holding_period
 
         if self.stop_loss >= self.entry_price:
             print(f"WARNING ({self.name}): Stop Loss ({round(self.stop_loss, 2)}) is >= entry price ({self.entry_price}). Position might close immediately.")
@@ -164,33 +164,32 @@ class BoundedStrategy(Strategy):
             ) -> None:
         """Executes the simulation and persists daily performance metrics.
 
-        Runs the strategy day-by-day. For each step, it triggers trading logic,
-        calculates the current total equity (Cash + Stock Value), and logs the
-        state. The resulting performance history is saved to the specified
-        SQLite database.
+        Runs the strategy utilizing the valid trading days from `self.sf.index`.
+        For each step, it triggers trading logic, calculates the current total equity
+        (Cash + Stock Value), and logs the state. The resulting performance history
+        is saved to the specified SQLite database.
 
         Args:
             db_route (str): The file path to the SQLite database.
         """
 
-        date_range = get_date_range(self.start, self.end)
+        valid_dates = [d for d in self.sf.index if self.start <= d <= self.end]
         performance_log = []
 
-        for date in track(date_range, description=f"Executing and saving {self.name}..."):
-            if self.start <= date <= self.end:
-                try:
-                    self.check_and_do(date)
-                except (NotEnoughStockError, StopChecking):
-                    break
+        for date in track(valid_dates, description=f"Executing and saving {self.name}..."):
+            try:
+                self.check_and_do(date)
+            except (NotEnoughStockError, StopChecking):
+                break
 
-                total_equity = self.get_current_capital(date)
-                invested_value = total_equity - self.fiat
-                performance_log.append({
-                    "Date": date,
-                    "Cash": round(self.fiat, 2),
-                    "Stock_Value": round(invested_value, 2),
-                    "Total_Equity": round(total_equity, 2)
-                })
+            total_equity = self.get_current_capital(date)
+            invested_value = total_equity - self.fiat
+            performance_log.append({
+                "Date": date,
+                "Cash": round(self.fiat, 2),
+                "Stock_Value": round(invested_value, 2),
+                "Total_Equity": round(total_equity, 2)
+            })
 
         if not self.closed:
             self.close_trade(self.end)

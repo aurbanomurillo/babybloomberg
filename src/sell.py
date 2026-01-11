@@ -1,5 +1,4 @@
-"""
-Sell (Short/Exit) strategies based on price levels or relative movements.
+"""Sell (Short/Exit) strategies based on price levels or relative movements.
 
 This module defines strategies specialized in closing positions or selling assets.
 It includes a static variant (`SellStrategy`) that sells at fixed prices or ranges,
@@ -9,6 +8,7 @@ variations (trailing stops or profit taking) relative to a previous period.
 
 from src.strategy import *
 from src.stockframe_manager import *
+from typing import Tuple, Union
 
 class SellStrategy(Strategy):
     """Static sell strategy based on absolute price levels.
@@ -30,7 +30,7 @@ class SellStrategy(Strategy):
             capital: float,
             sf: StockFrame,
             amount_per_trade: float,
-            threshold: tuple[float, float] | float,
+            threshold: Union[Tuple[float, float], float],
             sizing_type: str = "static",
             name: str = "undefined_static_sell_strategy"
             ) -> None:
@@ -48,13 +48,12 @@ class SellStrategy(Strategy):
             capital (float): Initial capital.
             sf (StockFrame): Data manager.
             amount_per_trade (float): Value to sell per signal.
-            threshold (float | tuple[float, float]): The price trigger.
+            threshold (Union[Tuple[float, float], float]): The price trigger.
                 - If float: Exact price to trigger sell.
                 - If tuple: Price range (min, max) to trigger sell.
             sizing_type (str, optional): Sizing type. Defaults to "static".
             name (str, optional): Strategy name.
         """
-
         super().__init__(ticker, start, end, capital, sf, sizing_type=sizing_type, name=name)
 
         if not self.start in self.sf.index:
@@ -63,10 +62,9 @@ class SellStrategy(Strategy):
                 new_start = valid_dates[0]
                 self.start = new_start
 
-        self.threshold: tuple[float, float] | float = threshold
+        self.threshold: Union[Tuple[float, float], float] = threshold
         self.amount_per_trade: float = amount_per_trade
         self.buy_all(self.start, trigger="initial_restock")
-
 
     def check_and_do(
             self,
@@ -83,14 +81,13 @@ class SellStrategy(Strategy):
         Raises:
             StopChecking: If the simulation end date is reached.
         """
-
         super().check_and_do(date)
         current_price = self.sf.get_price_in(date)
         if type(self.threshold) == tuple:
-            if self.start <= date < self.end and not current_price == None and self.threshold[0] <= current_price <= self.threshold[1]:
+            if self.start <= date < self.end and current_price is not None and self.threshold[0] <= current_price <= self.threshold[1]:
                 self.sell(self.amount_per_trade, date, trigger="automatic_check")
         elif type(self.threshold) == float:
-            if self.start <= date < self.end and not current_price == None and current_price == self.threshold:
+            if self.start <= date < self.end and current_price is not None and current_price == self.threshold:
                 self.sell(self.amount_per_trade, date, trigger="automatic_check")
         if date >= self.end:
             raise StopChecking
@@ -101,7 +98,6 @@ class SellStrategy(Strategy):
         Iterates through dates. If stock runs out (`NotEnoughStockError`), it closes
         the trade and stops. Forces closure at the end of the period.
         """
-
         for date in track(self.sf.index, description=f"Executing {self.name}..."):
             try:
                 self.check_and_do(date)
@@ -119,9 +115,9 @@ class SellStrategy(Strategy):
             ) -> None:
         """Executes the strategy simulation and persists daily performance metrics.
 
-        Runs the strategy day-by-day over the configured date range. It specifically
-        handles `NotEnoughStockError` by immediately closing the trade and stopping
-        the simulation, which is critical for sell-focused strategies.
+        Runs the strategy day-by-day utilizing the valid trading days from `self.sf.index`.
+        It specifically handles `NotEnoughStockError` by immediately closing the trade
+        and stopping the simulation, which is critical for sell-focused strategies.
 
         For each day, it triggers the trading logic, calculates the current equity
         (Cash + Stock Value), and logs the performance. Finally, the performance
@@ -131,11 +127,10 @@ class SellStrategy(Strategy):
             db_route (str): The file path to the SQLite database where the performance
                 table (named after the strategy) will be saved.
         """
-        
-        date_range = get_date_range(self.start, self.end)
+        valid_dates = [d for d in self.sf.index if self.start <= d <= self.end]
         performance_log = []
 
-        for date in track(date_range, description=f"Executing and saving {self.name}..."):
+        for date in track(valid_dates, description=f"Executing and saving {self.name}..."):
             try:
                 self.check_and_do(date)
             except NotEnoughStockError:
@@ -186,7 +181,7 @@ class DynamicSellStrategy(SellStrategy):
             capital: float,
             sf: StockFrame,
             amount_per_trade: float,
-            threshold: tuple[float, float] | float,
+            threshold: Union[Tuple[float, float], float],
             trigger_lookback: str = "1 day",
             sizing_type: str = "static",
             name: str = "undefined_dynamic_sell_strategy"
@@ -200,7 +195,7 @@ class DynamicSellStrategy(SellStrategy):
             capital (float): Initial capital.
             sf (StockFrame): Data manager.
             amount_per_trade (float): Value to sell per signal.
-            threshold (float | tuple[float, float]): Percentage variation to trigger sell.
+            threshold (Union[Tuple[float, float], float]): Percentage variation to trigger sell.
                 - Ex: -0.05 implies selling if price drops 5% (Stop Loss/Trailing).
                 - Ex: 0.10 implies selling if price rises 10% (Take Profit).
             trigger_lookback (str, optional): Lookback period. Defaults to "1 day".
@@ -210,7 +205,6 @@ class DynamicSellStrategy(SellStrategy):
         Raises:
             NotValidIntervalError: If threshold implies a drop of 100% or more.
         """
-
         if isinstance(threshold, float):
             if threshold <= -1:
                 raise NotValidIntervalError("Threshold cannot be -100% or lower.")
@@ -225,7 +219,6 @@ class DynamicSellStrategy(SellStrategy):
             sizing_type = sizing_type,
             name = name
             )
-            
         self.trigger_lookback:str = trigger_lookback
 
     def check_and_do(
@@ -244,13 +237,12 @@ class DynamicSellStrategy(SellStrategy):
         Raises:
             StopChecking: If end date is reached.
         """
-
         current_price = self.sf.get_price_in(date)
         reference_price = self.sf.get_last_valid_price(subtract_interval(date,self.trigger_lookback))
 
         if (self.start <= date < self.end and
-                not current_price == None and
-                not reference_price == None
+                current_price is not None and
+                reference_price is not None
                 ):
             if isinstance(self.threshold,float):
                 if self.threshold > 0:

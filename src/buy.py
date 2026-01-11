@@ -8,6 +8,7 @@ percentage variations (dips or breakouts) relative to a historical timeframe.
 
 from src.strategy import *
 from src.stockframe_manager import *
+from typing import Tuple, Union
 
 class BuyStrategy(Strategy):
     """Implements a static buy strategy based on absolute price levels.
@@ -32,10 +33,10 @@ class BuyStrategy(Strategy):
             capital: float,
             sf: StockFrame,
             amount_per_trade: float,
-            threshold: tuple[float, float] | float,
+            threshold: Union[Tuple[float, float], float],
             sizing_type: str = "static",
             name: str = "undefined_static_buy_strategy"
-            ):
+            ) -> None:
         """Initializes the static buy strategy with a fixed price target.
 
         Args:
@@ -45,7 +46,7 @@ class BuyStrategy(Strategy):
             capital (float): The initial capital available for the strategy.
             sf (StockFrame): The data manager containing price history.
             amount_per_trade (float): The monetary amount to invest per buy signal.
-            threshold (float | tuple[float, float]): The price trigger.
+            threshold (Union[Tuple[float, float], float]): The price trigger.
                 - If float: The exact price at which the buy will be triggered.
                 - If tuple: An inclusive range (min, max) within which the buy
                   will be triggered.
@@ -54,9 +55,8 @@ class BuyStrategy(Strategy):
             name (str, optional): A unique identifier for the strategy.
                 Defaults to "undefined_static_buy_strategy".
         """
-
         super().__init__(ticker, start, end, capital, sf, sizing_type=sizing_type, name=name)
-        self.threshold: tuple[float, float] | float = threshold
+        self.threshold: Union[Tuple[float, float], float] = threshold
         self.amount_per_trade: float = amount_per_trade
 
     def check_and_do(
@@ -78,19 +78,18 @@ class BuyStrategy(Strategy):
             StopChecking: If the current date has reached or exceeded the
                 strategy's end date, signaling the loop to terminate.
         """
-
         super().check_and_do(date)
         current_price = self.sf.get_price_in(date)
         
         if isinstance(self.threshold, tuple):
             if (self.start <= date < self.end and 
-                not current_price == None and 
+                current_price is not None and 
                 self.threshold[0] <= current_price <= self.threshold[1]):
                 self.buy(self.amount_per_trade, date, trigger="automatic_check")
                 
         elif isinstance(self.threshold, float):
             if (self.start <= date < self.end and 
-                not current_price == None and 
+                current_price is not None and 
                 current_price == self.threshold):
                 self.buy(self.amount_per_trade, date, trigger="automatic_check")
                 
@@ -105,7 +104,6 @@ class BuyStrategy(Strategy):
         "Buy All" operation before terminating. It ensures any open position
         is closed upon reaching the simulation end date.
         """
-
         for date in track(self.sf.index, description=f"Executing {self.name}..."):
             try:
                 self.check_and_do(date)
@@ -123,20 +121,20 @@ class BuyStrategy(Strategy):
             ) -> None:
         """Executes the simulation and persists daily performance metrics.
 
-        Runs the strategy day-by-day. It specifically handles `NotEnoughCashError`
-        by triggering a final `buy_all` operation to invest remaining capital.
-        It calculates daily equity (Cash + Stock Value) and saves the consolidated
-        performance history to a SQLite database.
+        Runs the strategy day-by-day using valid trading days from `self.sf.index`.
+        It specifically handles `NotEnoughCashError` by triggering a final `buy_all`
+        operation to invest remaining capital. It calculates daily equity
+        (Cash + Stock Value) and saves the consolidated performance history to a
+        SQLite database.
 
         Args:
             db_route (str): The file path to the SQLite database where the
                 performance table will be saved.
         """
-        
-        date_range = get_date_range(self.start, self.end)
+        valid_dates = [d for d in self.sf.index if self.start <= d <= self.end]
         performance_log = []
 
-        for date in track(date_range, description=f"Executing and saving {self.name}..."):
+        for date in track(valid_dates, description=f"Executing and saving {self.name}..."):
             try:
                 self.check_and_do(date)
             except NotEnoughCashError:
@@ -190,11 +188,11 @@ class DynamicBuyStrategy(BuyStrategy):
             capital: float,
             sf: StockFrame,
             amount_per_trade: float,
-            threshold: tuple[float, float] | float,
+            threshold: Union[Tuple[float, float], float],
             trigger_lookback: str = "1 day",
             sizing_type: str = "static",
             name: str = "undefined_dynamic_buy_strategy"
-            ):
+            ) -> None:
         """Initializes the dynamic strategy and validates thresholds.
 
         Args:
@@ -204,7 +202,7 @@ class DynamicBuyStrategy(BuyStrategy):
             capital (float): Initial capital.
             sf (StockFrame): Data manager.
             amount_per_trade (float): Capital to invest per trade.
-            threshold (float | tuple[float, float]): The percentage variation trigger.
+            threshold (Union[Tuple[float, float], float]): The percentage variation trigger.
                 - Float > 0: Buy on breakout (e.g., 0.10 for +10%).
                 - Float < 0: Buy on dip (e.g., -0.05 for -5%).
                 - Tuple: Buy if the relative change falls within the range.
@@ -217,7 +215,6 @@ class DynamicBuyStrategy(BuyStrategy):
             NotValidIntervalError: If any threshold value implies a drop of 100%
                 or more (<= -1.0), which is invalid for asset prices.
         """
-
         if isinstance(threshold, float):
             if threshold <= -1:
                 raise NotValidIntervalError("Threshold cannot be -100% or lower.")
@@ -232,7 +229,6 @@ class DynamicBuyStrategy(BuyStrategy):
             sizing_type = sizing_type,
             name = name
             )
-            
         self.trigger_lookback: str = trigger_lookback
 
     def check_and_do(
@@ -253,13 +249,12 @@ class DynamicBuyStrategy(BuyStrategy):
         Raises:
             StopChecking: If the simulation end date is reached.
         """
-
         current_price = self.sf.get_price_in(date)
         reference_price = self.sf.get_last_valid_price(subtract_interval(date, self.trigger_lookback))
 
         if (self.start <= date < self.end and
-                not current_price == None and
-                not reference_price == None
+                current_price is not None and
+                reference_price is not None
                 ):
             if isinstance(self.threshold, float):
                 if self.threshold > 0:

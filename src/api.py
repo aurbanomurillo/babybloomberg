@@ -10,20 +10,19 @@ import pandas as pd
 import requests
 from datetime import datetime, timedelta
 from io import StringIO
-from typing import List, Optional
 
-def get_sp500_tickers() -> List[str]:
+def get_sp500_tickers() -> list[str]:
     """Retrieves the current list of S&P 500 tickers from Wikipedia.
 
     Performs an HTTP GET request to the Wikipedia page for the S&P 500 index,
-    parses the constituents table, and sanitizes the ticker symbols (e.g.,
-    replacing dots with dashes) for compatibility with Yahoo Finance.
+    parses the constituents table, and sanitizes the ticker symbols by
+    replacing dots with dashes for compatibility with Yahoo Finance.
 
     Returns:
-        List[str]: An alphabetically sorted list of ticker symbols. Returns
+        list[str]: An alphabetically sorted list of ticker symbols. Returns
             an empty list if the request fails or parsing errors occur.
     """
-
+    
     url = 'https://en.wikipedia.org/wiki/List_of_S%26P_500_companies'
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
@@ -49,9 +48,9 @@ def get_sp500_tickers() -> List[str]:
 
 def download_new_data(
         ticker: str,
-        start_date: Optional[str] = None,
-        end_date: Optional[str] = None
-        ) -> pd.DataFrame:
+        start_date: str | None = None,
+        end_date: str | None = None
+) -> pd.DataFrame:
     """Downloads historical price data for a specific ticker via Yahoo Finance.
 
     This function acts as a wrapper for `yfinance.download`. It manages the
@@ -60,11 +59,11 @@ def download_new_data(
 
     Args:
         ticker (str): The asset ticker symbol (e.g., "AAPL").
-        start_date (Optional[str]): The start date in ISO format (YYYY-MM-DD).
-            If None, the full available history is downloaded.
-        end_date (Optional[str]): The end date in ISO format (YYYY-MM-DD).
+        start_date (str | None): The start date in ISO format (YYYY-MM-DD).
+            If None, the full available history is downloaded. Defaults to None.
+        end_date (str | None): The end date in ISO format (YYYY-MM-DD).
             Data is fetched up to this date (exclusive). If None, downloads
-            up to the most recent available data.
+            up to the most recent available data. Defaults to None.
 
     Returns:
         pd.DataFrame: A DataFrame containing historical market data (Open, High,
